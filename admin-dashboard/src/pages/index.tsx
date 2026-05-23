@@ -43,9 +43,10 @@ export function EmployeesPage() {
   const [statusF, setStatusF] = useState('');
 
   // lookup data for dropdowns
-  const [roles, setRoles] = useState<any[]>([]);
-  const [depts, setDepts] = useState<any[]>([]);
-  const [teams, setTeams] = useState<any[]>([]);
+  const [roles,    setRoles]    = useState<any[]>([]);
+  const [depts,    setDepts]    = useState<any[]>([]);
+  const [teams,    setTeams]    = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
 
   // modal state
   const [modal,   setModal]   = useState<'add' | 'edit' | 'view' | null>(null);
@@ -53,7 +54,7 @@ export function EmployeesPage() {
   const [saving,  setSaving]  = useState(false);
   const [errMsg,  setErrMsg]  = useState('');
 
-  const EMPTY_FORM = { firstName: '', lastName: '', email: '', phone: '', password: '', roleId: '', departmentId: '', teamId: '' };
+  const EMPTY_FORM = { firstName: '', lastName: '', email: '', phone: '', password: '', roleId: '', departmentId: '', teamId: '', reportingManagerId: '' };
   const [form, setForm] = useState(EMPTY_FORM);
 
   const LIMIT = 20;
@@ -77,6 +78,7 @@ export function EmployeesPage() {
     API.get('/roles').then(r => setRoles(r.data.data)).catch(() => {});
     API.get('/departments').then(r => setDepts(r.data.data)).catch(() => {});
     API.get('/teams').then(r => setTeams(r.data.data)).catch(() => {});
+    API.get('/users', { params: { limit: 300 } }).then(r => setAllUsers(r.data.data || [])).catch(() => {});
   }, []);
 
   function openAdd() {
@@ -89,14 +91,15 @@ export function EmployeesPage() {
   function openEdit(u: any) {
     setTarget(u);
     setForm({
-      firstName:    u.firstName || '',
-      lastName:     u.lastName  || '',
-      email:        u.email     || '',
-      phone:        u.phone     || '',
-      password:     '',
-      roleId:       u.role?.id  || '',
-      departmentId: u.department?.id || '',
-      teamId:       u.team?.id  || '',
+      firstName:          u.firstName || '',
+      lastName:           u.lastName  || '',
+      email:              u.email     || '',
+      phone:              u.phone     || '',
+      password:           '',
+      roleId:             u.role?.id  || '',
+      departmentId:       u.department?.id || '',
+      teamId:             u.team?.id  || '',
+      reportingManagerId: u.reportingManagerId || '',
     });
     setErrMsg('');
     setModal('edit');
@@ -105,19 +108,23 @@ export function EmployeesPage() {
   async function handleSave() {
     setSaving(true); setErrMsg('');
     try {
+      let savedId: string | null = null;
+
       if (modal === 'add') {
         // create via auth/register
         const payload: any = {
-          firstName:    form.firstName,
-          lastName:     form.lastName,
-          email:        form.email,
-          password:     form.password,
-          roleId:       form.roleId,
+          firstName: form.firstName,
+          lastName:  form.lastName,
+          email:     form.email,
+          password:  form.password,
+          roleId:    form.roleId,
         };
         if (form.phone)        payload.phone        = form.phone;
         if (form.departmentId) payload.departmentId = form.departmentId;
         if (form.teamId)       payload.teamId       = form.teamId;
-        await API.post('/auth/register', payload);
+        const res = await API.post('/auth/register', payload);
+        // extract new user id from response (various response shapes)
+        savedId = res.data?.data?.user?.id || res.data?.data?.id || res.data?.user?.id || null;
       } else {
         // update via users/:id
         const payload: any = {
@@ -129,9 +136,20 @@ export function EmployeesPage() {
           teamId:       form.teamId       || undefined,
         };
         await API.put(`/users/${target.id}`, payload);
+        savedId = target.id;
       }
+
+      // Assign / clear Reporting Manager (for gatepass approval routing)
+      if (savedId && (modal === 'edit' || form.reportingManagerId)) {
+        await API.patch(`/gatepass/users/${savedId}/set-rm`, {
+          reportingManagerId: form.reportingManagerId || null,
+        }).catch(() => {}); // non-blocking — don't fail the whole save
+      }
+
       setModal(null);
       load();
+      // refresh allUsers so RM names stay up-to-date in dropdowns
+      API.get('/users', { params: { limit: 300 } }).then(r => setAllUsers(r.data.data || [])).catch(() => {});
     } catch (e: any) {
       setErrMsg(e.response?.data?.message || 'Failed to save. Check all required fields.');
     }
@@ -209,6 +227,10 @@ export function EmployeesPage() {
                 <td style={tdStyle}>
                   <div style={{ fontSize: 13 }}>{u.department?.name || '—'}</div>
                   <div style={{ fontSize: 11, color: 'var(--muted)' }}>{u.team?.name || ''}</div>
+                  {u.reportingManagerId && (() => {
+                    const rm = allUsers.find((a: any) => a.id === u.reportingManagerId);
+                    return rm ? <div style={{ fontSize: 10, color: '#6366F1', marginTop: 2 }}>👤 RM: {rm.firstName} {rm.lastName}</div> : null;
+                  })()}
                 </td>
                 <td style={tdStyle}>
                   <span style={{ padding: '3px 8px', borderRadius: 6, background: '#EEF2FF', color: '#6366F1', fontWeight: 600, fontSize: 11 }}>
@@ -308,6 +330,27 @@ export function EmployeesPage() {
               </select>
             </div>
           </div>
+
+          {/* ── Reporting Manager ── */}
+          <div style={{ marginTop: 14 }}>
+            <label style={labelSt}>Reporting Manager 👤</label>
+            <select style={inputSt} value={form.reportingManagerId} onChange={e => f('reportingManagerId', e.target.value)}>
+              <option value="">— None (defaults to Team Leader) —</option>
+              {allUsers
+                .filter(u => u.id !== target?.id)
+                .map((u: any) => (
+                  <option key={u.id} value={u.id}>
+                    {u.firstName} {u.lastName}
+                    {u.role?.displayName ? ` · ${u.role.displayName}` : u.role?.name ? ` · ${u.role.name}` : ''}
+                  </option>
+                ))}
+            </select>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>
+              🚪 Gatepass requests from this employee will go to the selected person for approval.
+              If left blank, requests route to their Team Leader.
+            </div>
+          </div>
+
           {errMsg && <p style={{ color: '#DC2626', background: '#FEF2F2', padding: '8px 12px', borderRadius: 8, fontSize: 13, marginTop: 14 }}>{errMsg}</p>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
             <button onClick={() => setModal(null)} style={btnSecondary}>Cancel</button>
@@ -335,6 +378,10 @@ export function EmployeesPage() {
             ['Role',        target.role?.displayName || target.role?.name],
             ['Department',  target.department?.name || '—'],
             ['Team',        target.team?.name || '—'],
+            ['Reporting Manager', (() => {
+              const rm = allUsers.find((u: any) => u.id === target.reportingManagerId);
+              return rm ? `${rm.firstName} ${rm.lastName}` : '— (Team Leader fallback)';
+            })()],
             ['Status',      target.status],
             ['Online',      target.isOnline ? '🟢 Online' : '⚫ Offline'],
             ['Points',      `⭐ ${target.totalPoints?.toLocaleString() || 0}`],
