@@ -21,6 +21,7 @@ import { initSocketHandlers } from './sockets';
 import { startCronJobs }      from './jobs';
 import { setIO }              from './services/notification.service';
 import { prisma }             from './config/database';
+import { autoSeedIfEmpty }    from './utils/autoSeed';
 
 import authRoutes          from './routes/auth.routes';
 import roleRoutes          from './routes/role.routes';
@@ -133,6 +134,7 @@ async function bootstrap() {
     await connectRedis();
     await initMinIO();
     await initFirebaseAdmin();
+    await autoSeedIfEmpty();
     initSocketHandlers(io);
     startCronJobs();
     const PORT = Number(process.env.PORT) || 5000;
