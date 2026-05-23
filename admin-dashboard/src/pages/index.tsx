@@ -11,18 +11,19 @@ const btnSecondary: React.CSSProperties = { padding: '9px 18px', borderRadius: 9
 const btnDanger: React.CSSProperties  = { padding: '5px 10px', borderRadius: 6, background: '#FEE2E2', color: '#DC2626', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600 };
 const btnSuccess: React.CSSProperties = { padding: '5px 10px', borderRadius: 6, background: '#D1FAE5', color: '#059669', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600 };
 const labelSt:   React.CSSProperties = { display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4, color: 'var(--muted)', textTransform: 'uppercase' };
+const tableScroll: React.CSSProperties = { overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any };
 
 const STATUS_COLORS: Record<string, string> = { ACTIVE: '#10B981', INACTIVE: '#6B7280', SUSPENDED: '#EF4444', ON_LEAVE: '#F59E0B' };
 
 /* ─── Modal wrapper ─────────────────────────────────────────────── */
 function Modal({ title, onClose, children, width = 520 }: { title: string; onClose: () => void; children: React.ReactNode; width?: number }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '16px' }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ width, background: 'var(--card)', borderRadius: 16, padding: 28, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
+      <div style={{ width: '100%', maxWidth: width, background: 'var(--card)', borderRadius: 16, padding: '20px 18px 24px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>{title}</h2>
-          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 20, color: 'var(--muted)' }}>×</button>
+          <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, paddingRight: 12 }}>{title}</h2>
+          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 20, color: 'var(--muted)', flexShrink: 0 }}>×</button>
         </div>
         {children}
       </div>
@@ -175,6 +176,7 @@ export function EmployeesPage() {
 
       {/* Table */}
       <div style={cardStyle}>
+        <div style={tableScroll}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--bg)', borderBottom: '0.5px solid var(--border)' }}>
@@ -239,6 +241,7 @@ export function EmployeesPage() {
             ))}
           </tbody>
         </table>
+        </div>{/* end tableScroll */}
 
         {/* Pagination */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderTop: '0.5px solid var(--border)' }}>
@@ -258,7 +261,7 @@ export function EmployeesPage() {
       {/* ── Add / Edit Modal ──────────────────────────────────── */}
       {(modal === 'add' || modal === 'edit') && (
         <Modal title={modal === 'add' ? 'Add New Employee' : `Edit — ${target?.firstName} ${target?.lastName}`} onClose={() => setModal(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 14 }}>
             <div>
               <label style={labelSt}>First Name *</label>
               <input style={inputSt} value={form.firstName} onChange={e => f('firstName', e.target.value)} placeholder="First name" />
@@ -289,7 +292,7 @@ export function EmployeesPage() {
               {roles.map((r: any) => <option key={r.id} value={r.id}>{r.displayName || r.name}</option>)}
             </select>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 14, marginTop: 14 }}>
             <div>
               <label style={labelSt}>Department</label>
               <select style={inputSt} value={form.departmentId} onChange={e => f('departmentId', e.target.value)}>
@@ -442,6 +445,7 @@ export function TasksManagementPage() {
       </div>
 
       <div style={cardStyle}>
+        <div style={tableScroll}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--bg)', borderBottom: '0.5px solid var(--border)' }}>
@@ -481,6 +485,7 @@ export function TasksManagementPage() {
             ))}
           </tbody>
         </table>
+        </div>{/* end tableScroll */}
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderTop: '0.5px solid var(--border)', fontSize: 12, color: 'var(--muted)' }}>
           <span>{total > 0 ? `Showing ${((page-1)*LIMIT)+1}–${Math.min(page*LIMIT,total)} of ${total}` : '0 tasks'}</span>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -501,7 +506,7 @@ export function TasksManagementPage() {
             <label style={labelSt}>Description</label>
             <textarea style={{ ...inputSt, minHeight: 80, resize: 'vertical' as const }} value={form.description} onChange={e => f('description', e.target.value)} placeholder="Task details..." />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 14, marginBottom: 14 }}>
             <div>
               <label style={labelSt}>Assign To *</label>
               <select style={inputSt} value={form.assigneeId} onChange={e => f('assigneeId', e.target.value)}>
@@ -517,7 +522,7 @@ export function TasksManagementPage() {
               </select>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 14, marginBottom: 14 }}>
             <div>
               <label style={labelSt}>Priority</label>
               <select style={inputSt} value={form.priority} onChange={e => f('priority', e.target.value)}>
@@ -601,6 +606,7 @@ export function AttendancePage() {
       )}
 
       <div style={cardStyle}>
+        <div style={tableScroll}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--bg)', borderBottom: '0.5px solid var(--border)' }}>
@@ -629,6 +635,7 @@ export function AttendancePage() {
             ))}
           </tbody>
         </table>
+        </div>{/* end tableScroll */}
       </div>
     </div>
   );
@@ -690,6 +697,7 @@ export function LeavePage() {
       </div>
 
       <div style={cardStyle}>
+        <div style={tableScroll}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--bg)', borderBottom: '0.5px solid var(--border)' }}>
@@ -735,6 +743,7 @@ export function LeavePage() {
             ))}
           </tbody>
         </table>
+        </div>{/* end tableScroll */}
       </div>
     </div>
   );
@@ -770,6 +779,7 @@ export function AuditPage() {
         <p style={{ color: 'var(--muted)', fontSize: 13 }}>{total} total events</p>
       </div>
       <div style={cardStyle}>
+        <div style={tableScroll}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--bg)', borderBottom: '0.5px solid var(--border)' }}>
@@ -797,10 +807,12 @@ export function AuditPage() {
                   {l.entity}{l.entityId ? ` (${l.entityId.substring(0, 8)}…)` : ''}
                 </td>
                 <td style={{ ...tdStyle, fontSize: 11, color: 'var(--muted)', fontFamily: 'monospace' }}>{l.ipAddress || '—'}</td>
+
               </tr>
             ))}
           </tbody>
         </table>
+        </div>{/* end tableScroll */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderTop: '0.5px solid var(--border)' }}>
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>Page {page} of {Math.ceil(total / LIMIT) || 1}</span>
           <div style={{ display: 'flex', gap: 8 }}>

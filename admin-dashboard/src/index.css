@@ -29,6 +29,7 @@
   --info-bg:      #E9F2FF;
   --purple:       #5E4DB2;
   --purple-bg:    #F3F0FF;
+  --card:         #FFFFFF;
   --shadow-xs:    0 1px 2px rgba(9,30,66,.08);
   --shadow-sm:    0 1px 4px rgba(9,30,66,.10);
   --shadow-md:    0 3px 8px rgba(9,30,66,.12);
@@ -68,6 +69,7 @@
   --info-bg:      #1C2B41;
   --purple:       #B8ACF6;
   --purple-bg:    #352C63;
+  --card:         #22272B;
   --shadow-xs:    0 1px 2px rgba(0,0,0,.28);
   --shadow-sm:    0 1px 4px rgba(0,0,0,.34);
   --shadow-md:    0 3px 8px rgba(0,0,0,.40);
