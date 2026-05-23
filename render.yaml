@@ -6,7 +6,7 @@ services:
     plan: free
     branch: main
     rootDir: backend
-    buildCommand: npm ci && npx prisma generate && npm run build
+    buildCommand: npm ci && npx prisma generate && npx prisma db push --accept-data-loss && npm run build
     startCommand: node dist/server.js
     healthCheckPath: /health
     envVars:
@@ -31,7 +31,7 @@ services:
 
       # ── CORS: allow Vercel dashboard + Capacitor mobile ───────
       - key: FRONTEND_URL
-        sync: false            # set to: https://your-app.vercel.app,capacitor://localhost,https://localhost
+        value: "https://enterprise-productivity-admin.vercel.app,capacitor://localhost,https://localhost,http://localhost"
 
       # ── Defaults (override in dashboard if needed) ─────────────
       - key: JWT_EXPIRES_IN
