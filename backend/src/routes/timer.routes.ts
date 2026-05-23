@@ -49,7 +49,7 @@ router.post('/stop', async (req: AuthRequest, res, next) => {
 router.get('/active', async (req: AuthRequest, res, next) => {
   try {
     const keys = await redis.keys(`timer:${req.user!.userId}:*`);
-    const active = [];
+    const active: { taskId: string; startTime: number; elapsed: number }[] = [];
     for (const key of keys) {
       const start = await redis.get(key);
       const taskId = key.split(':')[2];
