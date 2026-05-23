@@ -4,7 +4,7 @@ services:
     runtime: node
     region: singapore          # closest to South Asia; change to "ohio" for US
     plan: free
-    branch: main
+    branch: master
     rootDir: backend
     buildCommand: npm ci && npx prisma generate && npx prisma db push --accept-data-loss && npm run build
     startCommand: node dist/server.js
