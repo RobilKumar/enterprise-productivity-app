@@ -1,5 +1,5 @@
 import React, { useState, createContext, useContext, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { DashboardPage } from './pages/DashboardPage';
 import { EmployeesPage, TasksManagementPage, AttendancePage, LeavePage, AuditPage } from './pages/index';
@@ -373,6 +373,154 @@ function Sidebar({ user, logout, toggleTheme, isDark }: any) {
         </div>
       </div>
     </aside>
+  );
+}
+
+// ─── Page title map (for mobile top bar) ─────────────────────
+const PAGE_TITLES: Record<string, string> = {
+  '/dashboard':     'Dashboard',
+  '/my-tasks':      'My Tasks',
+  '/tasks':         'Tasks',
+  '/employees':     'Employees',
+  '/departments':   'Departments',
+  '/teams':         'Teams',
+  '/shifts':        'Shifts',
+  '/plants':        'Plants',
+  '/attendance':    'Attendance',
+  '/leaves':        'Leave',
+  '/kpi':           'KPI Reports',
+  '/rights':        'Rights',
+  '/announcements': 'Announcements',
+  '/leaderboard':   'Leaderboard',
+  '/audit':         'Audit Logs',
+};
+
+// ─── Mobile Top Bar ───────────────────────────────────────────
+function MobileTopBar({ user, logout, isDark, toggleTheme }: any) {
+  const { pathname } = useLocation();
+  const title   = PAGE_TITLES[pathname] || 'Enterprise Productivity';
+  const initials = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`;
+  return (
+    <header className="mobile-topbar">
+      {/* Left: logo + title */}
+      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <div style={{
+          width:32, height:32, borderRadius:9,
+          background:'linear-gradient(135deg,#0C66E4 0%,#0747A6 100%)',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          color:'#fff', fontWeight:900, fontSize:12, flexShrink:0,
+          boxShadow:'0 2px 8px rgba(12,102,228,.3)',
+        }}>EP</div>
+        <span style={{ fontWeight:700, fontSize:17, color:'var(--text)', letterSpacing:-.2 }}>{title}</span>
+      </div>
+
+      {/* Right: theme toggle + avatar */}
+      <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+        <button onClick={toggleTheme} style={{
+          width:36, height:36, borderRadius:'50%', background:'var(--bg)',
+          border:'1.5px solid var(--border)', cursor:'pointer', fontSize:17,
+          display:'flex', alignItems:'center', justifyContent:'center',
+          flexShrink:0,
+        }}>{isDark ? '☀️' : '🌙'}</button>
+        <button onClick={logout} style={{
+          width:36, height:36, borderRadius:'50%',
+          background:'linear-gradient(135deg,#0C66E4,#0747A6)',
+          border:'none', cursor:'pointer', color:'#fff', fontWeight:700, fontSize:13,
+          display:'flex', alignItems:'center', justifyContent:'center',
+          flexShrink:0, boxShadow:'0 2px 8px rgba(12,102,228,.3)',
+        }}>{initials}</button>
+      </div>
+    </header>
+  );
+}
+
+// ─── Bottom Navigation + More Drawer ─────────────────────────
+function BottomNav({ user }: any) {
+  const role = user?.role || '';
+  const [showDrawer, setShowDrawer] = useState(false);
+
+  const PRIMARY_TABS = [
+    { to:'/dashboard',  label:'Home',       icon:'🏠' },
+    role === 'EMPLOYEE'
+      ? { to:'/my-tasks',   label:'My Tasks',  icon:'✅' }
+      : { to:'/tasks',      label:'Tasks',     icon:'📋' },
+    { to:'/attendance', label:'Attend',      icon:'📅' },
+    { to:'/leaves',     label:'Leave',       icon:'🌴' },
+  ];
+
+  const DRAWER_ITEMS = ALL_NAV.filter(n =>
+    !PRIMARY_TABS.find(p => p.to === n.to) &&
+    (n.roles.length === 0 || n.roles.includes(role))
+  );
+
+  return (
+    <>
+      {/* ── Fixed bottom bar ──────────────────────────────── */}
+      <nav className="m-bnav">
+        {PRIMARY_TABS.map(tab => (
+          <NavLink key={tab.to} to={tab.to}
+            className={({ isActive }) => `m-bnav__item${isActive ? ' active' : ''}`}>
+            <span className="m-bnav__icon">{tab.icon}</span>
+            <span className="m-bnav__label">{tab.label}</span>
+          </NavLink>
+        ))}
+        <button onClick={() => setShowDrawer(true)} className="m-bnav__item">
+          <span className="m-bnav__icon">☰</span>
+          <span className="m-bnav__label">More</span>
+        </button>
+      </nav>
+
+      {/* ── Slide-up More drawer ──────────────────────────── */}
+      {showDrawer && (
+        <div className="m-drawer-bg" onClick={() => setShowDrawer(false)}>
+          <div className="m-drawer" onClick={e => e.stopPropagation()}>
+            <div className="m-drawer__handle" />
+
+            {/* Header row */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+              padding:'0 20px 14px', borderBottom:'1px solid var(--border)', marginBottom:14 }}>
+              <span style={{ fontWeight:700, fontSize:17, color:'var(--text)' }}>More</span>
+              <button onClick={() => setShowDrawer(false)} style={{
+                width:32, height:32, borderRadius:'50%', background:'var(--bg)',
+                border:'1.5px solid var(--border)', cursor:'pointer', fontSize:16,
+                display:'flex', alignItems:'center', justifyContent:'center',
+              }}>✕</button>
+            </div>
+
+            {/* 3-column grid */}
+            <div className="m-drawer__grid">
+              {DRAWER_ITEMS.map(item => (
+                <NavLink key={item.to} to={item.to}
+                  onClick={() => setShowDrawer(false)}
+                  className={({ isActive }) => `m-drawer__item${isActive ? ' active' : ''}`}>
+                  <span className="m-drawer__icon">{item.icon}</span>
+                  <span className="m-drawer__label">{item.label}</span>
+                </NavLink>
+              ))}
+            </div>
+
+            {/* User info footer */}
+            <div style={{ display:'flex', alignItems:'center', gap:12,
+              padding:'14px 20px 18px', borderTop:'1px solid var(--border)' }}>
+              <div style={{
+                width:40, height:40, borderRadius:'50%',
+                background:'linear-gradient(135deg,#0C66E4,#0747A6)',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                color:'#fff', fontWeight:700, fontSize:14, flexShrink:0,
+              }}>
+                {user?.firstName?.[0]}{user?.lastName?.[0]}
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:600, fontSize:14 }}>{user?.firstName} {user?.lastName}</div>
+                <div style={{ fontSize:12, color:'var(--muted)' }}>
+                  {(user?.role || '').replace(/_/g,' ')}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1468,12 +1616,21 @@ export default function AdminApp() {
 
   return (
     <AuthCtx.Provider value={{ user, login, logout }}>
-      <div data-theme={isDark ? 'dark' : undefined} style={{ minHeight:'100vh', background:'var(--bg)', color:'var(--text)', display:'flex' }}>
+      <div data-theme={isDark ? 'dark' : undefined}
+           style={{ minHeight:'100vh', background:'var(--bg)', color:'var(--text)', display:'flex' }}>
         <BrowserRouter>
-          {!user ? <div style={{ flex:1 }}><LoginPage /></div> : (
+          {!user ? (
+            <div style={{ flex:1 }}><LoginPage /></div>
+          ) : (
             <>
+              {/* Desktop: left sidebar */}
               <Sidebar user={user} logout={logout} toggleTheme={toggleTheme} isDark={isDark} />
-              <main style={{ flex:1, overflowY:'auto', minHeight:'100vh', background:'var(--bg)' }}>
+
+              {/* Mobile: fixed top bar (hidden on desktop via CSS) */}
+              <MobileTopBar user={user} logout={logout} isDark={isDark} toggleTheme={toggleTheme} />
+
+              {/* Page content */}
+              <main className="app-main" style={{ flex:1, overflowY:'auto', minHeight:'100vh', background:'var(--bg)' }}>
                 <Routes>
                   <Route path="/"             element={<Navigate to="/dashboard" replace />} />
                   <Route path="/dashboard"    element={<DashboardPage />} />
@@ -1494,6 +1651,9 @@ export default function AdminApp() {
                   <Route path="*"             element={<Navigate to="/dashboard" replace />} />
                 </Routes>
               </main>
+
+              {/* Mobile: bottom navigation (hidden on desktop via CSS) */}
+              <BottomNav user={user} />
             </>
           )}
         </BrowserRouter>

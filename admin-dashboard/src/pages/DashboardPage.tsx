@@ -44,13 +44,13 @@ export function DashboardPage() {
   const PCOLORS: any = { CRITICAL:'#EF4444', HIGH:'#F59E0B', MEDIUM:'#3B82F6', LOW:'#10B981' };
 
   return (
-    <div style={{ padding:24 }}>
+    <div className="m-page" style={{ padding:24 }}>
       <h1 style={{ fontSize:22, fontWeight:700, marginBottom:4 }}>Dashboard</h1>
-      <p style={{ color:'var(--muted)', fontSize:13, marginBottom:24 }}>
+      <p style={{ color:'var(--muted)', fontSize:13, marginBottom:20 }}>
         {new Date().toLocaleDateString('en',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
       </p>
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(175px,1fr))', gap:12, marginBottom:24 }}>
+      <div className="m-kpi-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))', gap:12, marginBottom:20 }}>
         <KpiCard label="Total Tasks"    value={s.totalTasks    ??0} icon="📋" color="#6366F1" />
         <KpiCard label="Completed"      value={s.completedTasks??0} icon="✅" color="#10B981" />
         <KpiCard label="In Progress"    value={s.inProgressTasks??0} icon="⚡" color="#F59E0B" />
@@ -61,7 +61,7 @@ export function DashboardPage() {
         <KpiCard label="Present Today"  value={s.todayAttendance??0} icon="📅" color="#3B82F6" />
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'3fr 2fr', gap:16, marginBottom:16 }}>
+      <div className="m-chart-grid" style={{ display:'grid', gridTemplateColumns:'3fr 2fr', gap:14, marginBottom:14 }}>
         <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:20 }}>
           <h3 style={{ fontSize:13, fontWeight:600, marginBottom:14, margin:'0 0 14px' }}>Productivity Score Trend</h3>
           <ResponsiveContainer width="100%" height={220}>
@@ -102,7 +102,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
+      <div className="m-chart-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:14 }}>
         <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:20 }}>
           <h3 style={{ fontSize:13, fontWeight:600, margin:'0 0 14px' }}>Daily Work Hours Avg</h3>
           <ResponsiveContainer width="100%" height={200}>
