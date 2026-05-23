@@ -1,5 +1,6 @@
-import React, { useState, createContext, useContext, useEffect, useCallback } from 'react';
+import React, { useState, useRef, createContext, useContext, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
+import { io as socketIO } from 'socket.io-client';
 import { API } from './lib/api';
 export { API } from './lib/api'; // re-export so existing consumers still work
 import { DashboardPage } from './pages/DashboardPage';
@@ -90,6 +91,25 @@ function LogoutConfirm({ onConfirm, onCancel }: { onConfirm:()=>void; onCancel:(
   );
 }
 
+// ─── PG Brand Logo ────────────────────────────────────────────
+function PGLogo({ size = 32, textSize = 12 }: { size?: number; textSize?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink:0 }}>
+      <circle cx="22" cy="22" r="22" fill="#C8102E"/>
+      <circle cx="22" cy="22" r="19.5" fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth="1"/>
+      <text
+        x="22" y="29"
+        textAnchor="middle"
+        fill="white"
+        fontFamily="'Arial Black','Arial Bold',Arial,sans-serif"
+        fontWeight="900"
+        fontSize={textSize + 5}
+        letterSpacing="-0.8"
+      >PG</text>
+    </svg>
+  );
+}
+
 // ─── Shared style helpers (used throughout all pages) ─────────
 const labelStyle: React.CSSProperties = {
   display:'block', fontSize:11, fontWeight:600, color:'var(--muted)',
@@ -107,7 +127,7 @@ const smBtn: React.CSSProperties = {
   cursor:'pointer', fontSize:12, color:'var(--text-sub)', fontFamily:'inherit',
 };
 
-// ─── Login Page (Mobile-first redesign) ──────────────────────
+// ─── Login Page — PG World-Class Design ──────────────────────
 function LoginPage() {
   const { login }             = useAuth();
   const [email, setEmail]     = useState('superadmin@company.com');
@@ -124,192 +144,208 @@ function LoginPage() {
       login(data.data);
     } catch (ex: any) {
       setErr(ex.response?.data?.message || 'Invalid email or password. Please try again.');
-    }
-    finally { setBusy(false); }
+    } finally { setBusy(false); }
   };
 
-  const fieldBox = (isFocused: boolean): React.CSSProperties => ({
-    display:'flex', alignItems:'center', gap:10,
-    background:'#fff', border: isFocused ? '2px solid #0C66E4' : '1.5px solid #DFE1E6',
+  const field = (active: boolean): React.CSSProperties => ({
+    display:'flex', alignItems:'center', gap:12,
+    background: active ? '#fff' : '#F9FAFB',
+    border: active ? '2px solid #C8102E' : '1.5px solid #E5E7EB',
     borderRadius:14, padding:'0 16px', height:54,
-    boxShadow: isFocused ? '0 0 0 3px rgba(12,102,228,.12)' : 'none',
-    transition:'border-color .15s, box-shadow .15s',
+    boxShadow: active ? '0 0 0 4px rgba(200,16,46,.10)' : 'none',
+    transition:'all .18s cubic-bezier(.4,0,.2,1)',
   });
   const fieldInput: React.CSSProperties = {
     flex:1, border:'none', outline:'none', background:'transparent',
-    fontSize:15, color:'#172B4D', fontFamily:'inherit',
+    fontSize:15, color:'#111827', fontFamily:'inherit',
   };
 
   return (
-    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', background:'#EBF2FF' }}>
+    <div style={{
+      minHeight:'100vh',
+      background:'linear-gradient(150deg, #0D0D12 0%, #1A060A 40%, #0D0D12 100%)',
+      display:'flex', flexDirection:'column',
+      alignItems:'center', justifyContent:'center',
+      padding:'24px 20px',
+      position:'relative', overflow:'hidden',
+    }}>
+      {/* Glow orbs */}
+      <div style={{ position:'absolute', top:'-8%', right:'-4%', width:520, height:520,
+        borderRadius:'50%',
+        background:'radial-gradient(circle at center, rgba(200,16,46,0.18) 0%, transparent 65%)',
+        pointerEvents:'none' }} />
+      <div style={{ position:'absolute', bottom:'-12%', left:'-8%', width:600, height:600,
+        borderRadius:'50%',
+        background:'radial-gradient(circle at center, rgba(200,16,46,0.09) 0%, transparent 65%)',
+        pointerEvents:'none' }} />
+      {/* Dot grid */}
+      <div style={{ position:'absolute', inset:0, opacity:.4,
+        backgroundImage:'radial-gradient(circle, rgba(200,16,46,0.18) 1px, transparent 1px)',
+        backgroundSize:'32px 32px', pointerEvents:'none' }} />
 
-      {/* ── Brand hero header ─────────────────────────── */}
-      <div style={{
-        background:'linear-gradient(145deg, #0C66E4 0%, #0747A6 100%)',
-        padding:'60px 32px 72px',
-        display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center',
-        position:'relative', overflow:'hidden',
-      }}>
-        {/* Decorative circles */}
-        <div style={{ position:'absolute', top:-70, right:-70, width:220, height:220,
-          borderRadius:'50%', background:'rgba(255,255,255,.06)' }} />
-        <div style={{ position:'absolute', bottom:-50, left:-50, width:180, height:180,
-          borderRadius:'50%', background:'rgba(255,255,255,.04)' }} />
-
-        {/* App logo */}
-        <div style={{
-          width:72, height:72, borderRadius:20, marginBottom:18,
-          background:'rgba(255,255,255,.2)',
-          display:'flex', alignItems:'center', justifyContent:'center',
-          fontSize:26, fontWeight:900, color:'#fff', letterSpacing:-1,
-          boxShadow:'0 8px 28px rgba(0,0,0,.18)',
-          border:'1.5px solid rgba(255,255,255,.28)',
-        }}>EP</div>
-
-        <h1 style={{ color:'#fff', fontSize:22, fontWeight:800, margin:'0 0 8px', letterSpacing:-0.3 }}>
-          Enterprise Productivity
-        </h1>
-        <p style={{ color:'rgba(255,255,255,.72)', fontSize:13, margin:'0 0 22px', lineHeight:1.6 }}>
-          One platform for your entire team
-        </p>
-
-        <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'center' }}>
-          {['📋 Tasks','📅 Attendance','🕐 Shifts','📊 KPI'].map(f => (
-            <span key={f} style={{
-              fontSize:11, padding:'5px 13px', borderRadius:99,
-              background:'rgba(255,255,255,.15)', color:'rgba(255,255,255,.92)',
-              fontWeight:600,
-            }}>{f}</span>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Form card ─────────────────────────────────── */}
-      <div style={{
-        flex:1, background:'#EBF2FF',
-        display:'flex', flexDirection:'column', alignItems:'center',
-        padding:'0 20px 36px',
-      }}>
-        <div style={{
-          width:'100%', maxWidth:440,
-          background:'#fff', borderRadius:24,
-          padding:'28px 24px 24px',
-          boxShadow:'0 -4px 32px rgba(7,71,166,.14)',
-          marginTop:-28, position:'relative', zIndex:10,
-        }}>
-          <h2 style={{ fontSize:20, fontWeight:800, color:'#172B4D', margin:'0 0 4px' }}>
-            Welcome back 👋
-          </h2>
-          <p style={{ fontSize:13, color:'#626F86', margin:'0 0 22px' }}>
-            Sign in to continue to your workspace
-          </p>
-
-          {/* Error banner */}
-          {err && (
-            <div style={{
-              display:'flex', alignItems:'flex-start', gap:10,
-              background:'#FFF0EE', border:'1.5px solid #FFBDAD',
-              borderRadius:12, padding:'12px 14px', marginBottom:18,
-            }}>
-              <span style={{ fontSize:16, flexShrink:0, marginTop:1 }}>⚠️</span>
-              <span style={{ fontSize:13, color:'#AE2E24', fontWeight:500, lineHeight:1.5 }}>{err}</span>
-            </div>
-          )}
-
-          <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:16 }}>
-
-            {/* Email */}
-            <div>
-              <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#44546F',
-                letterSpacing:.5, textTransform:'uppercase', marginBottom:8 }}>
-                Email Address
-              </label>
-              <div style={fieldBox(focused === 'email')}>
-                <span style={{ fontSize:16, color:'#626F86', flexShrink:0 }}>✉️</span>
-                <input
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  onFocus={() => setFocused('email')}
-                  onBlur={() => setFocused(null)}
-                  type="email" required
-                  placeholder="you@company.com"
-                  style={fieldInput}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  inputMode="email"
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div>
-              <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#44546F',
-                letterSpacing:.5, textTransform:'uppercase', marginBottom:8 }}>
-                Password
-              </label>
-              <div style={fieldBox(focused === 'pass')}>
-                <span style={{ fontSize:16, color:'#626F86', flexShrink:0 }}>🔒</span>
-                <input
-                  value={pass}
-                  onChange={e => setPass(e.target.value)}
-                  onFocus={() => setFocused('pass')}
-                  onBlur={() => setFocused(null)}
-                  type={showPw ? 'text' : 'password'} required
-                  placeholder="Enter your password"
-                  style={fieldInput}
-                />
-                <button type="button" onClick={() => setShowPw(v => !v)}
-                  style={{ background:'none', border:'none', cursor:'pointer',
-                    color:'#626F86', fontSize:19, padding:'0 2px', lineHeight:1, flexShrink:0 }}>
-                  {showPw ? '🙈' : '👁️'}
-                </button>
-              </div>
-            </div>
-
-            {/* Submit */}
-            <button type="submit" disabled={busy} style={{
-              width:'100%', height:54, borderRadius:14, border:'none', marginTop:4,
-              background: busy ? '#7CB4F7' : 'linear-gradient(135deg, #0C66E4 0%, #0747A6 100%)',
-              color:'#fff', fontSize:16, fontWeight:700,
-              cursor: busy ? 'not-allowed' : 'pointer',
-              display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-              boxShadow: busy ? 'none' : '0 4px 16px rgba(12,102,228,.32)',
-              transition:'all .15s', letterSpacing:.2,
-            }}>
-              {busy ? (
-                <>
-                  <span style={{
-                    display:'inline-block', width:18, height:18, borderRadius:'50%',
-                    border:'2.5px solid rgba(255,255,255,.35)', borderTopColor:'#fff',
-                    animation:'ep-spin .7s linear infinite',
-                  }} />
-                  Signing in…
-                </>
-              ) : 'Sign In →'}
-            </button>
-          </form>
-
-          {/* Demo credentials */}
+      {/* ── Brand mark ── */}
+      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginBottom:28, zIndex:10 }}>
+        {/* PG circular logo with glow rings */}
+        <div style={{ position:'relative', marginBottom:20 }}>
           <div style={{
-            marginTop:20, padding:'13px 16px',
-            background:'#F7F8F9', borderRadius:12,
-            border:'1px dashed #DFE1E6',
+            position:'absolute', inset:-10, borderRadius:'50%',
+            background:'rgba(200,16,46,.12)', filter:'blur(12px)',
+          }} />
+          <div style={{
+            width:88, height:88, borderRadius:'50%',
+            background:'linear-gradient(145deg, #E8122F 0%, #A00D24 100%)',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            boxShadow:'0 0 0 6px rgba(200,16,46,.14), 0 0 0 12px rgba(200,16,46,.06), 0 12px 40px rgba(200,16,46,.40)',
+            border:'2px solid rgba(255,255,255,.18)',
+            position:'relative' as any,
           }}>
-            <div style={{ fontSize:11, fontWeight:700, color:'#44546F', marginBottom:5,
-              textTransform:'uppercase', letterSpacing:.5 }}>🧪 Demo Credentials</div>
-            <div style={{ fontSize:12, color:'#172B4D', fontFamily:'monospace', lineHeight:1.8 }}>
-              superadmin@company.com<br/>
-              <span style={{ color:'#0C66E4', fontWeight:600 }}>Admin@123456</span>
-            </div>
+            <span style={{
+              color:'#fff', fontSize:30, fontWeight:900, letterSpacing:-1.5,
+              fontFamily:"'Arial Black',Arial,sans-serif",
+              textShadow:'0 1px 4px rgba(0,0,0,.25)',
+            }}>PG</span>
           </div>
         </div>
-
-        <p style={{ fontSize:11, color:'#8993A4', marginTop:24, textAlign:'center' }}>
-          © 2025 Enterprise Productivity Suite
+        <h1 style={{
+          color:'#fff', fontSize:28, fontWeight:900,
+          margin:'0 0 6px', letterSpacing:-0.8, textAlign:'center',
+          textShadow:'0 2px 20px rgba(0,0,0,.4)',
+        }}>PG Enterprise Suite</h1>
+        <p style={{ color:'rgba(255,255,255,.40)', fontSize:12.5, margin:0,
+          textAlign:'center', letterSpacing:1, textTransform:'uppercase', fontWeight:600 }}>
+          Workforce Management Platform
         </p>
       </div>
 
-      <style>{`@keyframes ep-spin { to { transform: rotate(360deg); } }`}</style>
+      {/* ── Card ── */}
+      <div style={{
+        width:'100%', maxWidth:440, zIndex:10,
+        background:'rgba(255,255,255,0.97)',
+        borderRadius:24, padding:'32px 28px 26px',
+        boxShadow:'0 30px 80px rgba(0,0,0,.50), 0 0 0 1px rgba(255,255,255,.08)',
+        backdropFilter:'blur(20px)',
+      }}>
+        <div style={{ marginBottom:24 }}>
+          <h2 style={{ fontSize:22, fontWeight:800, color:'#111827', margin:'0 0 5px', letterSpacing:-.4 }}>
+            Welcome back
+          </h2>
+          <p style={{ fontSize:13.5, color:'#6B7280', margin:0, lineHeight:1.5 }}>
+            Sign in to access your workspace
+          </p>
+        </div>
+
+        {err && (
+          <div style={{
+            display:'flex', alignItems:'flex-start', gap:10,
+            background:'#FFF0F2', border:'1.5px solid #FECDD3',
+            borderRadius:12, padding:'12px 14px', marginBottom:20,
+          }}>
+            <span style={{ fontSize:15, flexShrink:0 }}>⚠️</span>
+            <span style={{ fontSize:13, color:'#C8102E', fontWeight:500, lineHeight:1.5 }}>{err}</span>
+          </div>
+        )}
+
+        <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:16 }}>
+
+          {/* Email */}
+          <div>
+            <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#374151',
+              letterSpacing:.6, textTransform:'uppercase', marginBottom:8 }}>Email Address</label>
+            <div style={field(focused === 'email')}>
+              <svg width="17" height="17" fill="none" viewBox="0 0 24 24"
+                stroke={focused === 'email' ? '#C8102E' : '#9CA3AF'} strokeWidth="1.8">
+                <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+              </svg>
+              <input value={email} onChange={e => setEmail(e.target.value)}
+                onFocus={() => setFocused('email')} onBlur={() => setFocused(null)}
+                type="email" required placeholder="you@company.com" style={fieldInput}
+                autoCapitalize="none" autoCorrect="off" inputMode="email" />
+            </div>
+          </div>
+
+          {/* Password */}
+          <div>
+            <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#374151',
+              letterSpacing:.6, textTransform:'uppercase', marginBottom:8 }}>Password</label>
+            <div style={field(focused === 'pass')}>
+              <svg width="17" height="17" fill="none" viewBox="0 0 24 24"
+                stroke={focused === 'pass' ? '#C8102E' : '#9CA3AF'} strokeWidth="1.8">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                <path d="M7 11V7a5 5 0 0110 0v4"/>
+              </svg>
+              <input value={pass} onChange={e => setPass(e.target.value)}
+                onFocus={() => setFocused('pass')} onBlur={() => setFocused(null)}
+                type={showPw ? 'text' : 'password'} required
+                placeholder="Enter your password" style={fieldInput} />
+              <button type="button" onClick={() => setShowPw(v => !v)}
+                style={{ background:'none', border:'none', cursor:'pointer',
+                  color: focused === 'pass' ? '#C8102E' : '#9CA3AF',
+                  fontSize:14, padding:'0 2px', lineHeight:1, flexShrink:0,
+                  display:'flex', alignItems:'center', transition:'color .15s' }}>
+                {showPw ? '🙈' : '👁️'}
+              </button>
+            </div>
+          </div>
+
+          {/* Submit */}
+          <button type="submit" disabled={busy} style={{
+            width:'100%', height:54, borderRadius:14, border:'none', marginTop:6,
+            background: busy
+              ? 'linear-gradient(135deg,#E8849A,#C06075)'
+              : 'linear-gradient(135deg, #E8122F 0%, #A00D24 100%)',
+            color:'#fff', fontSize:16, fontWeight:800,
+            cursor: busy ? 'not-allowed' : 'pointer',
+            display:'flex', alignItems:'center', justifyContent:'center', gap:10,
+            boxShadow: busy ? 'none' : '0 6px 24px rgba(200,16,46,.42)',
+            transition:'all .2s cubic-bezier(.4,0,.2,1)',
+            letterSpacing:.3,
+          }}>
+            {busy ? (
+              <>
+                <span style={{ display:'inline-block', width:18, height:18, borderRadius:'50%',
+                  border:'2.5px solid rgba(255,255,255,.4)', borderTopColor:'#fff',
+                  animation:'pg-spin .7s linear infinite' }} />
+                Signing in…
+              </>
+            ) : (
+              <>
+                Sign In
+                <svg width="18" height="18" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Feature pills */}
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'center', marginTop:20, marginBottom:16 }}>
+          {['📋 Tasks','📅 Attendance','🏆 Leaderboard','🚪 Gatepass'].map(f => (
+            <span key={f} style={{ fontSize:11, padding:'4px 12px', borderRadius:99,
+              background:'#F4F4F5', color:'#374151', fontWeight:600, border:'1px solid #E4E4E7' }}>{f}</span>
+          ))}
+        </div>
+
+        {/* Demo credentials */}
+        <div style={{ padding:'13px 16px', background:'#F9FAFB', borderRadius:12,
+          border:'1.5px dashed #E5E7EB' }}>
+          <div style={{ fontSize:10.5, fontWeight:700, color:'#6B7280', marginBottom:5,
+            textTransform:'uppercase', letterSpacing:.6 }}>🧪 Demo Credentials</div>
+          <div style={{ fontSize:12.5, color:'#111827', fontFamily:'monospace', lineHeight:1.9 }}>
+            superadmin@company.com<br/>
+            <span style={{ color:'#C8102E', fontWeight:700 }}>Admin@123456</span>
+          </div>
+        </div>
+      </div>
+
+      <p style={{ fontSize:11.5, color:'rgba(255,255,255,.20)', marginTop:28, textAlign:'center', zIndex:10 }}>
+        © 2025 PG Enterprise Suite · All rights reserved
+      </p>
+
+      <style>{`
+        @keyframes pg-spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn  { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+      `}</style>
     </div>
   );
 }
@@ -382,9 +418,9 @@ function Sidebar({ user, logout, toggleTheme, isDark }: any) {
     <aside className="sidebar">
       {/* Logo */}
       <div className="sidebar__logo">
-        <div className="sidebar__logo-icon">EP</div>
+        <PGLogo size={30} textSize={10} />
         <div className="sidebar__logo-text">
-          <span className="sidebar__logo-name">Enterprise</span>
+          <span className="sidebar__logo-name">PG Enterprise</span>
           <span className="sidebar__logo-sub">Productivity Suite</span>
         </div>
       </div>
@@ -460,121 +496,184 @@ function MobileTopBar({ user, logout, isDark, toggleTheme }: any) {
   const initials = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`;
   return (
     <header className="mobile-topbar">
-      {/* Left: logo + title */}
+      {/* Left: PG logo + page title */}
       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-        <div style={{
-          width:32, height:32, borderRadius:9,
-          background:'linear-gradient(135deg,#0C66E4 0%,#0747A6 100%)',
-          display:'flex', alignItems:'center', justifyContent:'center',
-          color:'#fff', fontWeight:900, fontSize:12, flexShrink:0,
-          boxShadow:'0 2px 8px rgba(12,102,228,.3)',
-        }}>EP</div>
-        <span style={{ fontWeight:700, fontSize:17, color:'var(--text)', letterSpacing:-.2 }}>{title}</span>
+        <PGLogo size={32} textSize={10} />
+        <span style={{ fontWeight:700, fontSize:17, color:'var(--text)', letterSpacing:-.3 }}>{title}</span>
       </div>
 
       {/* Right: theme toggle + avatar */}
       <div style={{ display:'flex', gap:8, alignItems:'center' }}>
         <button onClick={toggleTheme} style={{
-          width:36, height:36, borderRadius:'50%', background:'var(--bg)',
-          border:'1.5px solid var(--border)', cursor:'pointer', fontSize:17,
-          display:'flex', alignItems:'center', justifyContent:'center',
-          flexShrink:0,
+          width:36, height:36, borderRadius:'50%', background:'var(--surface-2)',
+          border:'1.5px solid var(--border)', cursor:'pointer', fontSize:16,
+          display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0,
+          transition:'all .15s',
         }}>{isDark ? '☀️' : '🌙'}</button>
         <button onClick={logout} style={{
           width:36, height:36, borderRadius:'50%',
-          background:'linear-gradient(135deg,#0C66E4,#0747A6)',
+          background:'linear-gradient(135deg,#E8122F,#A00D24)',
           border:'none', cursor:'pointer', color:'#fff', fontWeight:700, fontSize:13,
           display:'flex', alignItems:'center', justifyContent:'center',
-          flexShrink:0, boxShadow:'0 2px 8px rgba(12,102,228,.3)',
+          flexShrink:0, boxShadow:'0 2px 10px rgba(200,16,46,.35)',
+          transition:'all .15s',
         }}>{initials}</button>
       </div>
     </header>
   );
 }
 
+// ─── Icon tile colors per route ──────────────────────────────
+const TILE_COLORS: Record<string, string> = {
+  '/dashboard':     'linear-gradient(145deg,#6366F1,#4F46E5)',
+  '/tasks':         'linear-gradient(145deg,#3B82F6,#2563EB)',
+  '/my-tasks':      'linear-gradient(145deg,#3B82F6,#2563EB)',
+  '/employees':     'linear-gradient(145deg,#8B5CF6,#7C3AED)',
+  '/departments':   'linear-gradient(145deg,#14B8A6,#0D9488)',
+  '/teams':         'linear-gradient(145deg,#06B6D4,#0891B2)',
+  '/shifts':        'linear-gradient(145deg,#F59E0B,#D97706)',
+  '/plants':        'linear-gradient(145deg,#22C55E,#16A34A)',
+  '/attendance':    'linear-gradient(145deg,#0EA5E9,#0284C7)',
+  '/leaves':        'linear-gradient(145deg,#10B981,#059669)',
+  '/kpi':           'linear-gradient(145deg,#EAB308,#B45309)',
+  '/rights':        'linear-gradient(145deg,#EF4444,#DC2626)',
+  '/announcements': 'linear-gradient(145deg,#EC4899,#DB2777)',
+  '/leaderboard':   'linear-gradient(145deg,#F97316,#EA580C)',
+  '/audit':         'linear-gradient(145deg,#64748B,#475569)',
+  '/gatepass':      'linear-gradient(145deg,#C8102E,#8B0D1F)',
+};
+
 // ─── Bottom Navigation + More Drawer ─────────────────────────
 function BottomNav({ user }: any) {
   const role = user?.role || '';
   const [showDrawer, setShowDrawer] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const PRIMARY_TABS = [
-    { to:'/dashboard',  label:'Home',       icon:'🏠' },
+  const openDrawer  = () => { setShowDrawer(true);  setTimeout(() => setDrawerOpen(true), 10); };
+  const closeDrawer = () => { setDrawerOpen(false); setTimeout(() => setShowDrawer(false), 220); };
+
+  // Primary bar items: 2 left + FAB center + 2 right
+  const LEFT_TABS = [
+    { to:'/dashboard', label:'Home',   icon:'🏠' },
     role === 'EMPLOYEE'
-      ? { to:'/my-tasks',   label:'My Tasks',  icon:'✅' }
-      : { to:'/tasks',      label:'Tasks',     icon:'📋' },
-    { to:'/attendance', label:'Attend',      icon:'📅' },
-    { to:'/leaves',     label:'Leave',       icon:'🌴' },
+      ? { to:'/my-tasks', label:'Tasks', icon:'✅' }
+      : { to:'/tasks',    label:'Tasks', icon:'📋' },
+  ];
+  const RIGHT_TABS = [
+    { to:'/attendance', label:'Attend', icon:'📅' },
+    { to:'/leaves',     label:'Leave',  icon:'🌴' },
   ];
 
-  const DRAWER_ITEMS = ALL_NAV.filter(n =>
-    !PRIMARY_TABS.find(p => p.to === n.to) &&
+  // All nav items for the drawer, skip ones already in primary bar
+  const primaryRoutes = ['/dashboard','/tasks','/my-tasks','/attendance','/leaves'];
+  const DRAWER_ALL = ALL_NAV.filter(n =>
+    !primaryRoutes.includes(n.to) &&
     (n.roles.length === 0 || n.roles.includes(role))
+  );
+
+  // Split drawer items into two groups: main features + admin tools
+  const ADMIN_ROUTES = ['/employees','/departments','/teams','/shifts','/plants','/rights','/audit'];
+  const drawerMain  = DRAWER_ALL.filter(n => !ADMIN_ROUTES.includes(n.to));
+  const drawerAdmin = DRAWER_ALL.filter(n => ADMIN_ROUTES.includes(n.to));
+
+  const TileItem = ({ item }: { item: any }) => (
+    <NavLink to={item.to} onClick={closeDrawer}
+      className={({ isActive }) => `m-drawer__tile${isActive ? ' active' : ''}`}>
+      {() => (
+        <>
+          <div className="m-drawer__tile-box"
+            style={{ background: TILE_COLORS[item.to] || 'linear-gradient(145deg,#6B7280,#4B5563)' }}>
+            <span style={{ fontSize:24, lineHeight:1 }}>{item.icon}</span>
+          </div>
+          <span className="m-drawer__tile-label">{item.label}</span>
+        </>
+      )}
+    </NavLink>
   );
 
   return (
     <>
       {/* ── Fixed bottom bar ──────────────────────────────── */}
       <nav className="m-bnav">
-        {PRIMARY_TABS.map(tab => (
+        {LEFT_TABS.map(tab => (
           <NavLink key={tab.to} to={tab.to}
             className={({ isActive }) => `m-bnav__item${isActive ? ' active' : ''}`}>
-            <span className="m-bnav__icon">{tab.icon}</span>
+            <div className="m-bnav__icon-wrap">
+              <span className="m-bnav__icon">{tab.icon}</span>
+            </div>
             <span className="m-bnav__label">{tab.label}</span>
           </NavLink>
         ))}
-        <button onClick={() => setShowDrawer(true)} className="m-bnav__item">
-          <span className="m-bnav__icon">☰</span>
-          <span className="m-bnav__label">More</span>
-        </button>
+
+        {/* ── Floating center FAB ─────────────────────────── */}
+        <div className="m-bnav__fab">
+          <button className="m-bnav__fab-btn" onClick={openDrawer}>
+            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#fff" strokeWidth="2.2">
+              <path d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+          </button>
+        </div>
+
+        {RIGHT_TABS.map(tab => (
+          <NavLink key={tab.to} to={tab.to}
+            className={({ isActive }) => `m-bnav__item${isActive ? ' active' : ''}`}>
+            <div className="m-bnav__icon-wrap">
+              <span className="m-bnav__icon">{tab.icon}</span>
+            </div>
+            <span className="m-bnav__label">{tab.label}</span>
+          </NavLink>
+        ))}
       </nav>
 
-      {/* ── Slide-up More drawer ──────────────────────────── */}
+      {/* ── Slide-up drawer ───────────────────────────────── */}
       {showDrawer && (
-        <div className="m-drawer-bg" onClick={() => setShowDrawer(false)}>
-          <div className="m-drawer" onClick={e => e.stopPropagation()}>
+        <div className="m-drawer-bg"
+          style={{ opacity: drawerOpen ? 1 : 0, transition:'opacity .22s' }}
+          onClick={closeDrawer}>
+          <div className="m-drawer"
+            style={{ transform: drawerOpen ? 'translateY(0)' : 'translateY(60%)',
+              opacity: drawerOpen ? 1 : 0,
+              transition:'transform .26s cubic-bezier(.32,1,.56,1), opacity .22s' }}
+            onClick={e => e.stopPropagation()}>
+
+            {/* Handle */}
             <div className="m-drawer__handle" />
 
-            {/* Header row */}
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
-              padding:'0 20px 14px', borderBottom:'1px solid var(--border)', marginBottom:14 }}>
-              <span style={{ fontWeight:700, fontSize:17, color:'var(--text)' }}>More</span>
-              <button onClick={() => setShowDrawer(false)} style={{
-                width:32, height:32, borderRadius:'50%', background:'var(--bg)',
-                border:'1.5px solid var(--border)', cursor:'pointer', fontSize:16,
-                display:'flex', alignItems:'center', justifyContent:'center',
-              }}>✕</button>
-            </div>
-
-            {/* 3-column grid */}
-            <div className="m-drawer__grid">
-              {DRAWER_ITEMS.map(item => (
-                <NavLink key={item.to} to={item.to}
-                  onClick={() => setShowDrawer(false)}
-                  className={({ isActive }) => `m-drawer__item${isActive ? ' active' : ''}`}>
-                  <span className="m-drawer__icon">{item.icon}</span>
-                  <span className="m-drawer__label">{item.label}</span>
-                </NavLink>
-              ))}
-            </div>
-
-            {/* User info footer */}
-            <div style={{ display:'flex', alignItems:'center', gap:12,
-              padding:'14px 20px 18px', borderTop:'1px solid var(--border)' }}>
-              <div style={{
-                width:40, height:40, borderRadius:'50%',
-                background:'linear-gradient(135deg,#0C66E4,#0747A6)',
-                display:'flex', alignItems:'center', justifyContent:'center',
-                color:'#fff', fontWeight:700, fontSize:14, flexShrink:0,
-              }}>
+            {/* User banner */}
+            <div className="m-drawer__banner">
+              <div className="m-drawer__banner-avatar">
                 {user?.firstName?.[0]}{user?.lastName?.[0]}
               </div>
-              <div style={{ flex:1 }}>
-                <div style={{ fontWeight:600, fontSize:14 }}>{user?.firstName} {user?.lastName}</div>
-                <div style={{ fontSize:12, color:'var(--muted)' }}>
-                  {(user?.role || '').replace(/_/g,' ')}
-                </div>
+              <div>
+                <div className="m-drawer__banner-name">{user?.firstName} {user?.lastName}</div>
+                <div className="m-drawer__banner-role">{(user?.role||'').replace(/_/g,' ')}</div>
               </div>
+              <button className="m-drawer__banner-close" onClick={closeDrawer}>✕</button>
             </div>
+
+            {/* Quick Access */}
+            {drawerMain.length > 0 && (
+              <>
+                <div className="m-drawer__section">Quick Access</div>
+                <div className="m-drawer__grid">
+                  {drawerMain.map(item => <TileItem key={item.to} item={item} />)}
+                </div>
+              </>
+            )}
+
+            {/* Management (admin+ only) */}
+            {drawerAdmin.length > 0 && (
+              <>
+                <div className="m-drawer__section" style={{ borderTop:'1px solid var(--border)', paddingTop:14 }}>
+                  Management
+                </div>
+                <div className="m-drawer__grid">
+                  {drawerAdmin.map(item => <TileItem key={item.to} item={item} />)}
+                </div>
+              </>
+            )}
+
+            <div style={{ height: 16 }} />
           </div>
         </div>
       )}
@@ -1651,6 +1750,43 @@ function RightsMasterPage() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+//  TOAST NOTIFICATION SYSTEM
+// ═══════════════════════════════════════════════════════════════════
+interface ToastItem { id: number; msg: string; type: 'success' | 'error' | 'info' | 'warn' }
+const ToastCtx = createContext<(msg: string, type?: ToastItem['type']) => void>(() => {});
+const useToast  = () => useContext(ToastCtx);
+
+const TOAST_COLORS: Record<ToastItem['type'], { bg: string; border: string; icon: string }> = {
+  success: { bg: '#064E3B', border: '#10B981', icon: '✅' },
+  error:   { bg: '#7F1D1D', border: '#EF4444', icon: '❌' },
+  info:    { bg: '#1E3A5F', border: '#3B82F6', icon: '🔔' },
+  warn:    { bg: '#78350F', border: '#F59E0B', icon: '⚠️' },
+};
+
+function ToastContainer({ toasts, remove }: { toasts: ToastItem[]; remove: (id: number) => void }) {
+  if (toasts.length === 0) return null;
+  return (
+    <div style={{ position:'fixed', bottom:88, right:16, zIndex:9999, display:'flex', flexDirection:'column', gap:8, maxWidth:320, pointerEvents:'none' }}>
+      {toasts.map(t => {
+        const c = TOAST_COLORS[t.type];
+        return (
+          <div key={t.id} style={{ padding:'12px 14px', borderRadius:12, background:c.bg, border:`1px solid ${c.border}`,
+            color:'#fff', fontSize:13, fontWeight:500, display:'flex', alignItems:'center', gap:10,
+            boxShadow:'0 6px 24px rgba(0,0,0,.45)', pointerEvents:'all',
+            animation:'fadeInUp .3s ease' }}>
+            <span style={{ fontSize:16 }}>{c.icon}</span>
+            <span style={{ flex:1, lineHeight:1.4 }}>{t.msg}</span>
+            <button onClick={() => remove(t.id)} style={{ background:'rgba(255,255,255,.18)', border:'none',
+              borderRadius:6, width:22, height:22, color:'#fff', cursor:'pointer', fontSize:13,
+              display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>×</button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
 //  GATEPASS MODULE — Employee Outpass System
 //  Uses the existing API axios instance → /api/v1/gatepass/*
 // ═══════════════════════════════════════════════════════════════════
@@ -1704,13 +1840,13 @@ function fmtDt(dt?: string | null) {
 }
 
 // ─── My Requests Tab ──────────────────────────────────────────────
-function GpMyTab() {
+function GpMyTab({ refreshTick }: { refreshTick?: number }) {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [showAdd,  setShowAdd]  = useState(false);
   const [saving,   setSaving]   = useState(false);
   const [err,      setErr]      = useState('');
-  const EMPTY = { outpassType: 'OFFICIAL', destination: '', purpose: '', expectedReturnTime: '', remarks: '' };
+  const EMPTY = { outpassType: 'OFFICIAL', destination: '', purpose: '', isFullDay: false, expectedReturnTime: '', remarks: '' };
   const [form, setForm] = useState(EMPTY);
 
   const load = useCallback(() => {
@@ -1720,15 +1856,25 @@ function GpMyTab() {
       .catch(() => setLoading(false));
   }, []);
   useEffect(() => { load(); }, [load]);
+  // Re-fetch when a socket event fires
+  useEffect(() => { if (refreshTick && refreshTick > 0) load(); }, [refreshTick]);
 
   const submit = async () => {
-    if (!form.destination.trim() || !form.purpose.trim() || !form.expectedReturnTime) {
+    if (!form.destination.trim() || !form.purpose.trim()) {
       setErr('Please fill all required fields.'); return;
+    }
+    if (!form.isFullDay && !form.expectedReturnTime) {
+      setErr('Expected return time is required for half-day passes.'); return;
     }
     setSaving(true); setErr('');
     try {
       await API.post('/gatepass', {
-        ...form, expectedReturnTime: new Date(form.expectedReturnTime).toISOString(),
+        outpassType: form.outpassType,
+        destination: form.destination,
+        purpose:     form.purpose,
+        isFullDay:   form.isFullDay,
+        expectedReturnTime: form.isFullDay ? undefined : new Date(form.expectedReturnTime).toISOString(),
+        remarks:     form.remarks || undefined,
       });
       setShowAdd(false); setForm(EMPTY); load();
     } catch (e: any) { setErr(e.response?.data?.message || e.message || 'Failed to submit'); }
@@ -1741,7 +1887,7 @@ function GpMyTab() {
     catch (e: any) { alert(e.response?.data?.message || e.message || 'Cannot cancel'); }
   };
 
-  const f = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
+  const f = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }));
 
   return (
     <div>
@@ -1764,9 +1910,12 @@ function GpMyTab() {
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:10 }}>
                 <div>
                   <div style={{ fontFamily:'monospace', fontSize:11, color:'var(--muted)', marginBottom:4 }}>{r.passNumber}</div>
-                  <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                  <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
                     <GpStatusBadge status={r.status} />
                     <GpTypeBadge   type={r.outpassType} />
+                    {r.isFullDay
+                      ? <span style={{ padding:'3px 9px', borderRadius:8, fontSize:11, fontWeight:700, color:'#5B21B6', background:'#EDE9FE' }}>🌕 Full Day</span>
+                      : <span style={{ padding:'3px 9px', borderRadius:8, fontSize:11, fontWeight:700, color:'#065F46', background:'#D1FAE5' }}>☀️ Half Day</span>}
                   </div>
                 </div>
                 {r.status === 'PENDING' && <button onClick={() => cancel(r.id)} style={gpBtnRed}>✕ Cancel</button>}
@@ -1774,7 +1923,9 @@ function GpMyTab() {
               <div style={{ fontSize:14, fontWeight:600, marginBottom:4 }}>📍 {r.destination}</div>
               <div style={{ fontSize:13, color:'var(--muted)', marginBottom:8, lineHeight:1.5 }}>{r.purpose}</div>
               <div style={{ display:'flex', gap:14, fontSize:12, color:'var(--muted)', flexWrap:'wrap' }}>
-                <span>⏰ Expected: {fmtDt(r.expectedReturnTime)}</span>
+                {r.isFullDay
+                  ? <span>🌕 Full day pass — will not return today</span>
+                  : <span>⏰ Expected: {fmtDt(r.expectedReturnTime)}</span>}
                 {r.approvedBy && <span>✅ By: {r.approvedBy.firstName} {r.approvedBy.lastName}</span>}
                 {r.actualExitTime   && <span>🚶 Exited: {fmtDt(r.actualExitTime)}</span>}
                 {r.actualReturnTime && <span>🏠 Returned: {fmtDt(r.actualReturnTime)}</span>}
@@ -1823,8 +1974,38 @@ function GpMyTab() {
             <label style={labelStyle}>Purpose / Reason *</label>
             <textarea style={{ ...inputStyle, minHeight:72, resize:'vertical' as const }} value={form.purpose} onChange={e => f('purpose', e.target.value)} placeholder="Briefly describe why you need to go out..." />
 
-            <label style={labelStyle}>Expected Return Time *</label>
-            <input type="datetime-local" style={inputStyle} value={form.expectedReturnTime} onChange={e => f('expectedReturnTime', e.target.value)} min={new Date().toISOString().slice(0,16)} />
+            {/* Full Day / Half Day toggle */}
+            <label style={labelStyle}>Duration *</label>
+            <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+              <button type="button" onClick={() => f('isFullDay', false)}
+                style={{ flex:1, padding:'10px 16px', borderRadius:10, cursor:'pointer', fontSize:13, fontWeight:600, fontFamily:'inherit',
+                  border: !form.isFullDay ? '2px solid var(--primary)' : '1px solid var(--border)',
+                  background: !form.isFullDay ? 'var(--primary-bg)' : 'var(--bg)',
+                  color: !form.isFullDay ? 'var(--primary)' : 'var(--muted)' }}>
+                ☀️ Half Day<br />
+                <span style={{ fontSize:11, fontWeight:400, opacity:.8 }}>Will return today</span>
+              </button>
+              <button type="button" onClick={() => f('isFullDay', true)}
+                style={{ flex:1, padding:'10px 16px', borderRadius:10, cursor:'pointer', fontSize:13, fontWeight:600, fontFamily:'inherit',
+                  border: form.isFullDay ? '2px solid #7C3AED' : '1px solid var(--border)',
+                  background: form.isFullDay ? '#EDE9FE' : 'var(--bg)',
+                  color: form.isFullDay ? '#5B21B6' : 'var(--muted)' }}>
+                🌕 Full Day<br />
+                <span style={{ fontSize:11, fontWeight:400, opacity:.8 }}>Won't return today</span>
+              </button>
+            </div>
+
+            {!form.isFullDay && (
+              <>
+                <label style={labelStyle}>Expected Return Time *</label>
+                <input type="datetime-local" style={inputStyle} value={form.expectedReturnTime} onChange={e => f('expectedReturnTime', e.target.value)} min={new Date().toISOString().slice(0,16)} />
+              </>
+            )}
+            {form.isFullDay && (
+              <div style={{ padding:'10px 14px', borderRadius:10, background:'#EDE9FE', border:'1px solid #C4B5FD', marginBottom:16, fontSize:13, color:'#5B21B6' }}>
+                🌕 Full day pass — you will not be expected back until the next working day.
+              </div>
+            )}
 
             <label style={labelStyle}>Additional Remarks (optional)</label>
             <input style={inputStyle} value={form.remarks} onChange={e => f('remarks', e.target.value)} placeholder="Any extra notes for your manager…" />
@@ -1843,7 +2024,7 @@ function GpMyTab() {
 }
 
 // ─── Approvals Tab ─────────────────────────────────────────────────
-function GpApprovalsTab() {
+function GpApprovalsTab({ refreshTick }: { refreshTick?: number }) {
   const [requests,   setRequests]   = useState<any[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [processing, setProcessing] = useState<string|null>(null);
@@ -1857,6 +2038,7 @@ function GpApprovalsTab() {
       .catch(() => setLoading(false));
   }, []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (refreshTick && refreshTick > 0) load(); }, [refreshTick]);
 
   const decide = async (requestId: string, approved: boolean, note = '') => {
     setProcessing(requestId);
@@ -1911,7 +2093,11 @@ function GpApprovalsTab() {
               </div>
 
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
-                <span style={{ fontSize:12, color:'var(--muted)' }}>⏰ Expected back: <strong>{fmtDt(r.expectedReturnTime)}</strong></span>
+                <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+                  {r.isFullDay
+                    ? <span style={{ fontSize:12, padding:'3px 9px', borderRadius:8, fontWeight:700, color:'#5B21B6', background:'#EDE9FE' }}>🌕 Full Day</span>
+                    : <span style={{ fontSize:12, color:'var(--muted)' }}>⏰ Expected back: <strong>{fmtDt(r.expectedReturnTime)}</strong></span>}
+                </div>
                 <div style={{ display:'flex', gap:8 }}>
                   <button onClick={() => { setRejectItem(r); setRemarks(''); }} style={gpBtnRed}>✕ Reject</button>
                   <button onClick={() => decide(r.id, true)} disabled={processing===r.id}
@@ -1919,7 +2105,7 @@ function GpApprovalsTab() {
                     {processing===r.id ? '…' : '✓ Approve'}
                   </button>
                 </div>
-              </div>
+              </div>  {/* end approve/reject row */}
             </div>
             );
           })}
@@ -1952,7 +2138,7 @@ function GpApprovalsTab() {
 }
 
 // ─── Gate Terminal Tab ─────────────────────────────────────────────
-function GpGateTab() {
+function GpGateTab({ refreshTick }: { refreshTick?: number }) {
   const [passes,     setPasses]     = useState<any[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [processing, setProcessing] = useState<string|null>(null);
@@ -1964,6 +2150,7 @@ function GpGateTab() {
       .catch(() => setLoading(false));
   }, []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (refreshTick && refreshTick > 0) load(); }, [refreshTick]);
 
   const markExit = async (id: string) => {
     setProcessing(id);
@@ -1983,8 +2170,8 @@ function GpGateTab() {
 
   return (
     <div>
-      {/* Stats + Refresh */}
-      <div style={{ display:'flex', gap:12, marginBottom:20, flexWrap:'wrap', alignItems:'flex-start' }}>
+      {/* Stats + LIVE indicator + Refresh */}
+      <div style={{ display:'flex', gap:12, marginBottom:20, flexWrap:'wrap', alignItems:'center' }}>
         {[{ label:'Ready to Exit', count:readyToExit.length,  color:'#10B981' },
           { label:'Currently Out', count:currentlyOut.length, color:'#3B82F6' }].map(s => (
           <div key={s.label} style={{ padding:'12px 20px', background:'var(--surface)', border:`1px solid ${s.color}30`, borderRadius:12 }}>
@@ -1992,7 +2179,14 @@ function GpGateTab() {
             <div style={{ fontSize:12, color:'var(--muted)' }}>{s.label}</div>
           </div>
         ))}
-        <button onClick={load} style={{ ...gpBtnSec, marginLeft:'auto' }}>↻ Refresh</button>
+        {/* LIVE pulsing indicator */}
+        <div style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:20,
+          background:'#FEF2F2', border:'1px solid #FCA5A5', marginLeft:'auto' }}>
+          <span style={{ width:8, height:8, borderRadius:'50%', background:'#EF4444', display:'inline-block',
+            animation:'gpPulse 1.4s ease-in-out infinite', boxShadow:'0 0 0 0 rgba(239,68,68,.4)' }} />
+          <span style={{ fontSize:11, fontWeight:700, color:'#DC2626', letterSpacing:.8 }}>LIVE</span>
+        </div>
+        <button onClick={load} style={gpBtnSec}>↻ Refresh</button>
       </div>
 
       {loading ? <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loading…</div>
@@ -2000,7 +2194,7 @@ function GpGateTab() {
         <div style={{ textAlign:'center', padding:60 }}>
           <div style={{ fontSize:48, marginBottom:12 }}>🚪</div>
           <div style={{ fontSize:16, fontWeight:600 }}>No active passes right now</div>
-          <div style={{ fontSize:13, color:'var(--muted)', marginTop:4 }}>Approved passes will appear here.</div>
+          <div style={{ fontSize:13, color:'var(--muted)', marginTop:4 }}>Approved passes will appear here in real-time.</div>
         </div>
       ) : (
         <div>
@@ -2023,9 +2217,13 @@ function GpGateTab() {
                         <div style={{ fontSize:12, color:'var(--muted)' }}>{req.employeeId} · {req.department?.name}</div>
                         <div style={{ display:'flex', gap:8, marginTop:4, flexWrap:'wrap', alignItems:'center' }}>
                           <GpTypeBadge type={p.outpassType} />
+                          {p.isFullDay
+                            ? <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#5B21B6', background:'#EDE9FE' }}>🌕 Full Day</span>
+                            : <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#065F46', background:'#D1FAE5' }}>☀️ Half Day</span>}
                           <span style={{ fontSize:12, color:'var(--muted)' }}>→ {p.destination}</span>
                         </div>
-                        <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>⏰ Expected: {fmtDt(p.expectedReturnTime)}</div>
+                        {!p.isFullDay && <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>⏰ Expected back: {fmtDt(p.expectedReturnTime)}</div>}
+                        {p.isFullDay && <div style={{ fontSize:11, color:'#7C3AED', marginTop:4 }}>🌕 Will not return today</div>}
                       </div>
                       <button onClick={() => markExit(p.id)} disabled={processing===p.id}
                         style={{ ...gpBtnPri, padding:'11px 18px', opacity:processing===p.id?.6:1, flexShrink:0 }}>
@@ -2047,7 +2245,7 @@ function GpGateTab() {
               </div>
               <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                 {currentlyOut.map((p: any) => {
-                  const overdue = new Date(p.expectedReturnTime) < new Date();
+                  const overdue = !p.isFullDay && p.expectedReturnTime && new Date(p.expectedReturnTime) < new Date();
                   const req = p.requester || {};
                   const name = `${req.firstName||''} ${req.lastName||''}`.trim();
                   return (
@@ -2057,17 +2255,33 @@ function GpGateTab() {
                           <div style={{ fontFamily:'monospace', fontSize:11, color:'var(--muted)', marginBottom:2 }}>{p.passNumber}</div>
                           <div style={{ fontWeight:700, fontSize:15 }}>{name}</div>
                           <div style={{ fontSize:12, color:'var(--muted)' }}>{req.employeeId} · {req.department?.name}</div>
+                          <div style={{ display:'flex', gap:6, marginTop:4, flexWrap:'wrap', alignItems:'center' }}>
+                            {p.isFullDay
+                              ? <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#5B21B6', background:'#EDE9FE' }}>🌕 Full Day</span>
+                              : <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#065F46', background:'#D1FAE5' }}>☀️ Half Day</span>}
+                          </div>
                           <div style={{ display:'flex', gap:12, marginTop:4, fontSize:12, flexWrap:'wrap' }}>
                             <span>🚶 Exit: {fmtDt(p.actualExitTime)}</span>
-                            <span style={{ color: overdue ? '#EF4444' : 'var(--muted)', fontWeight: overdue ? 700 : 400 }}>
-                              {overdue ? '⚠️ OVERDUE — ' : '⏰ '}Expected: {fmtDt(p.expectedReturnTime)}
-                            </span>
+                            {!p.isFullDay && (
+                              <span style={{ color: overdue ? '#EF4444' : 'var(--muted)', fontWeight: overdue ? 700 : 400 }}>
+                                {overdue ? '⚠️ OVERDUE — ' : '⏰ '}Expected: {fmtDt(p.expectedReturnTime)}
+                              </span>
+                            )}
+                            {p.isFullDay && <span style={{ color:'#7C3AED' }}>🌕 Full day — won't return today</span>}
                           </div>
                         </div>
-                        <button onClick={() => markReturn(p.id)} disabled={processing===p.id}
-                          style={{ ...gpBtnGreen, padding:'11px 16px', fontSize:13, opacity:processing===p.id?.6:1, flexShrink:0 }}>
-                          {processing===p.id ? '…' : '🏠 Mark Return'}
-                        </button>
+                        {/* Full-day passes have no "Mark Return" — they won't come back today */}
+                        {!p.isFullDay && (
+                          <button onClick={() => markReturn(p.id)} disabled={processing===p.id}
+                            style={{ ...gpBtnGreen, padding:'11px 16px', fontSize:13, opacity:processing===p.id?.6:1, flexShrink:0 }}>
+                            {processing===p.id ? '…' : '🏠 Mark Return'}
+                          </button>
+                        )}
+                        {p.isFullDay && (
+                          <div style={{ padding:'9px 14px', borderRadius:9, background:'#EDE9FE', fontSize:12, color:'#5B21B6', fontWeight:600, flexShrink:0 }}>
+                            Full Day Out
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -2082,7 +2296,7 @@ function GpGateTab() {
 }
 
 // ─── HR Dashboard Tab ──────────────────────────────────────────────
-function GpHRTab() {
+function GpHRTab({ refreshTick }: { refreshTick?: number }) {
   const [allRequests, setAllRequests] = useState<any[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [statusF,     setStatusF]     = useState('');
@@ -2094,6 +2308,7 @@ function GpHRTab() {
       .catch(() => setLoading(false));
   }, []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (refreshTick && refreshTick > 0) load(); }, [refreshTick]);
 
   const filtered = statusF ? allRequests.filter(r => r.status === statusF) : allRequests;
 
@@ -2128,7 +2343,7 @@ function GpHRTab() {
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
               <thead>
                 <tr style={{ background:'var(--bg)', borderBottom:'1px solid var(--border)' }}>
-                  {['Pass #','Employee','Dept','Type','Destination','Expected Return','Exited At','Returned At','Status','Approved By'].map(h => (
+                  {['Pass #','Employee','Dept','Type','Duration','Destination','Expected Return','Exited At','Returned At','Status','Approved By'].map(h => (
                     <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', whiteSpace:'nowrap', letterSpacing:.4 }}>{h}</th>
                   ))}
                 </tr>
@@ -2146,8 +2361,13 @@ function GpHRTab() {
                     <td style={{ padding:'10px 14px', fontWeight:600, whiteSpace:'nowrap' }}>{name}</td>
                     <td style={{ padding:'10px 14px', fontSize:12, color:'var(--muted)' }}>{req.department?.name||'—'}</td>
                     <td style={{ padding:'10px 14px' }}><GpTypeBadge type={r.outpassType} /></td>
+                    <td style={{ padding:'10px 14px' }}>
+                      {r.isFullDay
+                        ? <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#5B21B6', background:'#EDE9FE' }}>🌕 Full</span>
+                        : <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#065F46', background:'#D1FAE5' }}>☀️ Half</span>}
+                    </td>
                     <td style={{ padding:'10px 14px', maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.destination}</td>
-                    <td style={{ padding:'10px 14px', fontSize:12, whiteSpace:'nowrap' }}>{fmtDt(r.expectedReturnTime)}</td>
+                    <td style={{ padding:'10px 14px', fontSize:12, whiteSpace:'nowrap' }}>{r.isFullDay ? '—' : fmtDt(r.expectedReturnTime)}</td>
                     <td style={{ padding:'10px 14px', fontSize:12, whiteSpace:'nowrap' }}>{fmtDt(r.actualExitTime)}</td>
                     <td style={{ padding:'10px 14px', fontSize:12, whiteSpace:'nowrap' }}>{fmtDt(r.actualReturnTime)}</td>
                     <td style={{ padding:'10px 14px' }}><GpStatusBadge status={r.status} /></td>
@@ -2166,8 +2386,10 @@ function GpHRTab() {
 
 // ─── Main Gatepass Page ────────────────────────────────────────────
 function GatepassPage() {
-  const { user } = useAuth();
-  const [tab, setTab] = useState<'my'|'approve'|'gate'|'hr'>('my');
+  const { user }  = useAuth();
+  const addToast  = useToast();
+  const [tab,     setTab]     = useState<'my'|'approve'|'gate'|'hr'>('my');
+  const [gpTick,  setGpTick]  = useState(0);   // increment to trigger live refresh in all tabs
 
   const role    = user?.role || '';
   const isAdmin = ['SUPER_ADMIN','ADMIN'].includes(role);
@@ -2180,15 +2402,64 @@ function GatepassPage() {
     { key:'hr',      label:'📊 HR Dashboard', show: isAdmin },
   ].filter(t => t.show);
 
-  // If current tab is no longer visible (role change), fall back to first
   const validTab = TABS.find(t => t.key === tab) ? tab : (TABS[0]?.key as any || 'my');
+
+  // ── Socket.IO real-time connection ──────────────────────────────
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+    const base = (import.meta.env.VITE_API_URL as string || '').replace('/api/v1', '');
+    const socket = socketIO(base, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 5,
+    });
+
+    socket.on('connect', () => console.log('[Gatepass] 🔌 Socket connected:', socket.id));
+    socket.on('disconnect', () => console.log('[Gatepass] 🔌 Socket disconnected'));
+
+    socket.on('gatepass:new', (data: any) => {
+      const who = data.requester ? `${data.requester.firstName} ${data.requester.lastName}` : 'Someone';
+      addToast(`🚪 New outpass request from ${who}`, 'info');
+      setGpTick(t => t + 1);
+    });
+    socket.on('gatepass:approved', (data: any) => {
+      addToast(`✅ Gatepass ${data.passNumber || ''} approved!`, 'success');
+      setGpTick(t => t + 1);
+    });
+    socket.on('gatepass:rejected', (data: any) => {
+      addToast(`❌ Gatepass ${data.passNumber || ''} rejected`, 'error');
+      setGpTick(t => t + 1);
+    });
+    socket.on('gatepass:exited', (data: any) => {
+      const who = data.requester ? `${data.requester.firstName} ${data.requester.lastName}` : 'An employee';
+      addToast(`🚶 ${who} exited the premises`, 'info');
+      setGpTick(t => t + 1);
+    });
+    socket.on('gatepass:returned', (data: any) => {
+      const who = data.requester ? `${data.requester.firstName} ${data.requester.lastName}` : 'An employee';
+      addToast(`🏠 ${who} has returned`, 'success');
+      setGpTick(t => t + 1);
+    });
+
+    return () => { socket.disconnect(); };
+  }, []); // connect once per mount
 
   return (
     <div style={{ padding:24 }}>
       {/* Header */}
-      <div style={{ marginBottom:20 }}>
-        <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>🚪 Gatepass</h1>
-        <div style={{ fontSize:13, color:'var(--muted)', marginTop:4 }}>Employee Outpass Management</div>
+      <div style={{ marginBottom:20, display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>🚪 Gatepass</h1>
+          <div style={{ fontSize:13, color:'var(--muted)', marginTop:4 }}>Employee Outpass Management</div>
+        </div>
+        {/* Real-time indicator */}
+        <div style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:20,
+          background:'#FEF2F2', border:'1px solid #FCA5A5' }}>
+          <span style={{ width:7, height:7, borderRadius:'50%', background:'#EF4444', display:'inline-block',
+            animation:'gpPulse 1.4s ease-in-out infinite' }} />
+          <span style={{ fontSize:11, fontWeight:700, color:'#DC2626' }}>REAL-TIME</span>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -2204,11 +2475,11 @@ function GatepassPage() {
         ))}
       </div>
 
-      {/* Tab content */}
-      {validTab === 'my'      && <GpMyTab />}
-      {validTab === 'approve' && <GpApprovalsTab />}
-      {validTab === 'gate'    && <GpGateTab />}
-      {validTab === 'hr'      && <GpHRTab />}
+      {/* Tab content — gpTick triggers live refresh across all tabs */}
+      {validTab === 'my'      && <GpMyTab       refreshTick={gpTick} />}
+      {validTab === 'approve' && <GpApprovalsTab refreshTick={gpTick} />}
+      {validTab === 'gate'    && <GpGateTab      refreshTick={gpTick} />}
+      {validTab === 'hr'      && <GpHRTab        refreshTick={gpTick} />}
     </div>
   );
 }
@@ -2220,6 +2491,16 @@ export default function AdminApp() {
   });
   const [theme,        setTheme]        = useState<'light'|'dark'>(() => localStorage.getItem('theme') as any || 'light');
   const [showLogoutDlg, setShowLogoutDlg] = useState(false);
+
+  // ── Toast state ────────────────────────────────────────────────
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const toastIdRef = useRef(0);
+  const addToast = useCallback((msg: string, type: ToastItem['type'] = 'info') => {
+    const id = ++toastIdRef.current;
+    setToasts(prev => [...prev, { id, msg, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4500);
+  }, []);
+  const removeToast = (id: number) => setToasts(prev => prev.filter(t => t.id !== id));
 
   const login = (d: any) => {
     localStorage.setItem('accessToken',  d.accessToken);
@@ -2238,6 +2519,7 @@ export default function AdminApp() {
   const isDark = theme === 'dark';
 
   return (
+    <ToastCtx.Provider value={addToast}>
     <AuthCtx.Provider value={{ user, login, logout }}>
       <div data-theme={isDark ? 'dark' : undefined}
            style={{ minHeight:'100vh', background:'var(--bg)', color:'var(--text)', display:'flex' }}>
@@ -2288,7 +2570,11 @@ export default function AdminApp() {
             </>
           )}
         </BrowserRouter>
+
+        {/* Global toast notifications */}
+        <ToastContainer toasts={toasts} remove={removeToast} />
       </div>
     </AuthCtx.Provider>
+    </ToastCtx.Provider>
   );
 }

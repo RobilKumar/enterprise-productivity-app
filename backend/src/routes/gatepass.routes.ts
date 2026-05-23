@@ -3,6 +3,7 @@ import { z }          from 'zod';
 import { prisma }     from '../config/database';
 import { authenticate, authorize, MANAGEMENT_ROLES, LEADER_AND_UP } from '../middleware/auth.middleware';
 import { NotificationService } from '../services/notification.service';
+import { emitGatepass }        from '../utils/socketHelper';
 import type { AuthRequest }    from '../types';
 
 const router = Router();
@@ -14,9 +15,13 @@ const CreateSchema = z.object({
   outpassType:        z.enum(['OFFICIAL', 'PERSONAL', 'MEDICAL', 'EMERGENCY']),
   destination:        z.string().min(2).max(200),
   purpose:            z.string().min(5).max(500),
-  expectedReturnTime: z.string(), // ISO datetime string
+  isFullDay:          z.boolean().optional().default(false),
+  expectedReturnTime: z.string().optional(), // Required when isFullDay = false
   remarks:            z.string().max(300).optional(),
-});
+}).refine(
+  data => data.isFullDay || !!data.expectedReturnTime,
+  { message: 'expectedReturnTime is required for half-day passes', path: ['expectedReturnTime'] }
+);
 
 const ApproveSchema = z.object({
   approved:       z.boolean(),
@@ -96,23 +101,39 @@ router.post('/', async (req: AuthRequest, res, next) => {
         outpassType:        body.outpassType,
         destination:        body.destination,
         purpose:            body.purpose,
-        expectedReturnTime: new Date(body.expectedReturnTime),
+        isFullDay:          body.isFullDay ?? false,
+        expectedReturnTime: body.isFullDay ? null : new Date(body.expectedReturnTime!),
         remarks:            body.remarks,
         status:             'PENDING',
       },
+      include: { requester: { select: userSelect } },
     });
 
-    // Notify RM
+    const requester = await prisma.user.findUnique({ where: { id: userId }, select: { firstName: true, lastName: true } });
+    const fullName  = `${requester?.firstName} ${requester?.lastName}`;
+
+    // Notify RM via in-app notification + socket
     if (rm) {
-      const requester = await prisma.user.findUnique({ where: { id: userId }, select: { firstName: true, lastName: true } });
       await NotificationService.send({
         userId: rm.id,
         type:   'GATEPASS_PENDING',
         title:  '🚪 New Gatepass Request',
-        body:   `${requester?.firstName} ${requester?.lastName} raised an outpass request [${passNumber}]. Please review.`,
+        body:   `${fullName} raised an outpass [${passNumber}]${body.isFullDay ? ' (Full Day)' : ''}. Please review.`,
         data:   { gatepassId: request.id },
       });
+      // Real-time socket event to the RM's personal room
+      emitGatepass('new', {
+        id: request.id, passNumber, requesterId: userId,
+        name: fullName, isFullDay: body.isFullDay,
+        destination: body.destination,
+      }, [`user:${rm.id}`]);
     }
+    // Also broadcast to all admins for awareness
+    emitGatepass('new', {
+      id: request.id, passNumber, requesterId: userId,
+      name: fullName, isFullDay: body.isFullDay,
+      destination: body.destination,
+    }, ['company']);
 
     res.status(201).json({ success: true, data: request });
   } catch (err) { next(err); }
@@ -194,22 +215,28 @@ router.patch('/:id/approve', authorize(...LEADER_AND_UP), async (req: AuthReques
       data:  { status: newStatus, approvedById: managerId, approvedAt: new Date(), approvalRemarks },
     });
 
+    const requesterName = `${request.requester.firstName} ${request.requester.lastName}`;
+    const socketPayload = {
+      id: request.id, passNumber: request.passNumber,
+      requesterId: request.requesterId, name: requesterName,
+      destination: request.destination, approved,
+    };
+
     if (approved) {
-      // Notify all ADMIN/SUPER_ADMIN users (serve as Security + HR portal)
       const admins = await prisma.user.findMany({
         where:  { role: { name: { in: ['ADMIN', 'SUPER_ADMIN', 'MANAGER'] } }, deletedAt: null },
         select: { id: true },
       });
-      const requester = request.requester;
       await NotificationService.broadcast(
         admins.map(a => a.id),
         'GATEPASS_APPROVED',
-        `🚪 Gatepass Approved — ${requester.firstName} ${requester.lastName}`,
-        `[${request.passNumber}] ${requester.firstName} ${requester.lastName} has an approved outpass. Destination: ${request.destination}. Expected return: ${request.expectedReturnTime.toLocaleString()}`,
+        `🚪 Gatepass Approved — ${requesterName}`,
+        `[${request.passNumber}] approved. Destination: ${request.destination}.`,
         { gatepassId: request.id },
       );
+      // Socket: notify requester + admins
+      emitGatepass('approved', socketPayload, [`user:${request.requesterId}`, 'company']);
     } else {
-      // Notify employee of rejection
       await NotificationService.send({
         userId: request.requesterId,
         type:   'GATEPASS_REJECTED',
@@ -217,6 +244,8 @@ router.patch('/:id/approve', authorize(...LEADER_AND_UP), async (req: AuthReques
         body:   `Your outpass [${request.passNumber}] has been rejected.${approvalRemarks ? ` Reason: ${approvalRemarks}` : ''}`,
         data:   { gatepassId: request.id },
       });
+      // Socket: notify requester
+      emitGatepass('rejected', { ...socketPayload, reason: approvalRemarks }, [`user:${request.requesterId}`]);
     }
 
     res.json({ success: true, data: updated });
@@ -255,19 +284,26 @@ router.patch('/:id/exit', authorize(...MANAGEMENT_ROLES), async (req: AuthReques
       data:  { status: 'EXITED', actualExitTime: new Date(), exitRecordedById: req.user!.userId },
     });
 
-    // Notify ADMIN/SUPER_ADMIN (HR) of exit
+    const emp = await prisma.user.findUnique({ where: { id: request.requesterId }, select: { firstName: true, lastName: true } });
+    const empName = `${emp?.firstName} ${emp?.lastName}`;
+    const time = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
     const admins = await prisma.user.findMany({
       where:  { role: { name: { in: ['ADMIN', 'SUPER_ADMIN'] } }, deletedAt: null },
       select: { id: true },
     });
-    const emp = await prisma.user.findUnique({ where: { id: request.requesterId }, select: { firstName: true, lastName: true } });
     await NotificationService.broadcast(
       admins.map(a => a.id),
       'GATEPASS_EXITED',
-      `🚶 Employee Exited — ${emp?.firstName} ${emp?.lastName}`,
-      `[${request.passNumber}] ${emp?.firstName} ${emp?.lastName} has left the premises at ${new Date().toLocaleTimeString()}.`,
+      `🚶 Employee Exited — ${empName}`,
+      `[${request.passNumber}] ${empName} left at ${time}.`,
       { gatepassId: request.id },
     );
+    // Real-time socket to all connected clients
+    emitGatepass('exited', {
+      id: request.id, passNumber: request.passNumber,
+      requesterId: request.requesterId, name: empName, time,
+    }, ['company']);
 
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
@@ -285,19 +321,26 @@ router.patch('/:id/return', authorize(...MANAGEMENT_ROLES), async (req: AuthRequ
       data:  { status: 'RETURNED', actualReturnTime: new Date(), returnRecordedById: req.user!.userId },
     });
 
-    // Notify ADMIN/SUPER_ADMIN (HR) of return
+    const emp = await prisma.user.findUnique({ where: { id: request.requesterId }, select: { firstName: true, lastName: true } });
+    const empName = `${emp?.firstName} ${emp?.lastName}`;
+    const time = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
     const admins = await prisma.user.findMany({
       where:  { role: { name: { in: ['ADMIN', 'SUPER_ADMIN'] } }, deletedAt: null },
       select: { id: true },
     });
-    const emp = await prisma.user.findUnique({ where: { id: request.requesterId }, select: { firstName: true, lastName: true } });
     await NotificationService.broadcast(
       admins.map(a => a.id),
       'GATEPASS_RETURNED',
-      `🏠 Employee Returned — ${emp?.firstName} ${emp?.lastName}`,
-      `[${request.passNumber}] ${emp?.firstName} ${emp?.lastName} has returned at ${new Date().toLocaleTimeString()}.`,
+      `🏠 Employee Returned — ${empName}`,
+      `[${request.passNumber}] ${empName} returned at ${time}.`,
       { gatepassId: request.id },
     );
+    // Real-time socket
+    emitGatepass('returned', {
+      id: request.id, passNumber: request.passNumber,
+      requesterId: request.requesterId, name: empName, time,
+    }, ['company']);
 
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }

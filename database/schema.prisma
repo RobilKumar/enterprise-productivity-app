@@ -600,7 +600,8 @@ model GatepassRequest {
   outpassType        String    // OFFICIAL | PERSONAL | MEDICAL | EMERGENCY
   destination        String
   purpose            String
-  expectedReturnTime DateTime
+  isFullDay          Boolean   @default(false)   // true = won't return same day, false = half-day outpass
+  expectedReturnTime DateTime?                   // null when isFullDay = true
   remarks            String?
   status             String    @default("PENDING")
   // PENDING | APPROVED | REJECTED | CANCELLED | EXITED | RETURNED

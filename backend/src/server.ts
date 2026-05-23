@@ -20,6 +20,7 @@ import { globalRateLimiter } from './middleware/rateLimiter';
 import { initSocketHandlers } from './sockets';
 import { startCronJobs }      from './jobs';
 import { setIO }              from './services/notification.service';
+import { setGlobalIO }        from './utils/socketHelper';
 import { autoSeedIfEmpty }    from './utils/autoSeed';
 
 import authRoutes          from './routes/auth.routes';
@@ -61,6 +62,7 @@ export const io = new SocketIOServer(server, {
   pingInterval: 25000,
 });
 setIO(io);
+setGlobalIO(io);
 
 // ─── Middleware ──────────────────────────────────────────────
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' }, contentSecurityPolicy: false }));

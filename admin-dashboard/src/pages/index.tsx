@@ -6,10 +6,10 @@ const cardStyle: React.CSSProperties = { background: 'var(--card)', border: '0.5
 const thStyle:   React.CSSProperties = { padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 };
 const tdStyle:   React.CSSProperties = { padding: '12px 16px' };
 const inputSt:   React.CSSProperties = { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' };
-const btnPrimary: React.CSSProperties = { padding: '9px 18px', borderRadius: 9, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13 };
-const btnSecondary: React.CSSProperties = { padding: '9px 18px', borderRadius: 9, background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: 13 };
-const btnDanger: React.CSSProperties  = { padding: '5px 10px', borderRadius: 6, background: '#FEE2E2', color: '#DC2626', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600 };
-const btnSuccess: React.CSSProperties = { padding: '5px 10px', borderRadius: 6, background: '#D1FAE5', color: '#059669', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600 };
+const btnPrimary: React.CSSProperties = { padding: '9px 20px', borderRadius: 10, background: '#C8102E', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, boxShadow: '0 2px 8px rgba(200,16,46,.25)', display:'inline-flex', alignItems:'center', gap:6 };
+const btnSecondary: React.CSSProperties = { padding: '9px 18px', borderRadius: 10, background: 'transparent', color: 'var(--text)', border: '1.5px solid var(--border)', cursor: 'pointer', fontSize: 13, fontWeight: 500 };
+const btnDanger: React.CSSProperties  = { padding: '5px 12px', borderRadius: 8, background: '#FEE2E2', color: '#DC2626', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700 };
+const btnSuccess: React.CSSProperties = { padding: '5px 12px', borderRadius: 8, background: '#D1FAE5', color: '#059669', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700 };
 const labelSt:   React.CSSProperties = { display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4, color: 'var(--muted)', textTransform: 'uppercase' };
 const tableScroll: React.CSSProperties = { overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any };
 
@@ -470,75 +470,127 @@ export function TasksManagementPage() {
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className="pg-page" style={{ padding: 24 }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div className="pg-page-header" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Task Management</h1>
-          <p style={{ color: 'var(--muted)', fontSize: 13 }}>{total} total tasks</p>
+          <h1 style={{ fontSize:22, fontWeight:800, marginBottom:3, letterSpacing:-.3 }}>Task Management</h1>
+          <p style={{ color:'var(--muted)', fontSize:13 }}>{total} total tasks</p>
         </div>
-        <button onClick={() => { setForm(EMPTY_TASK); setErrMsg(''); setShowAdd(true); }} style={btnPrimary}>+ Create Task</button>
+        <div className="pg-page-actions">
+          <button onClick={() => { setForm(EMPTY_TASK); setErrMsg(''); setShowAdd(true); }} style={btnPrimary}>
+            + Create Task
+          </button>
+        </div>
       </div>
 
-      {/* Status filter chips */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+      {/* Status filter chips — horizontally scrollable */}
+      <div className="chip-bar">
         {STATUSES.map(s => (
           <button key={s} onClick={() => { setStatus(s); setPage(1); }}
-            style={{ padding: '6px 14px', borderRadius: 20, border: '1px solid var(--border)', cursor: 'pointer', fontSize: 12, fontWeight: 500,
-              background: status === s ? '#6366F1' : 'var(--bg)', color: status === s ? '#fff' : 'var(--text)' }}>
+            className={`chip${status === s ? ' active' : ''}`}>
             {s || 'All'}
           </button>
         ))}
       </div>
 
-      <div style={cardStyle}>
+      {/* ── Desktop table ─────────────────────────────────── */}
+      <div className="m-table" style={cardStyle}>
         <div style={tableScroll}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: 'var(--bg)', borderBottom: '0.5px solid var(--border)' }}>
-              {['Title', 'Assignee', 'Team', 'Priority', 'Status', 'Due Date', 'Escalated'].map(h => (
-                <th key={h} style={thStyle}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={7} style={{ ...tdStyle, textAlign: 'center', color: 'var(--muted)', padding: 40 }}>Loading…</td></tr>
-            ) : tasks.length === 0 ? (
-              <tr><td colSpan={7} style={{ ...tdStyle, textAlign: 'center', color: 'var(--muted)', padding: 40 }}>No tasks found. Create one above.</td></tr>
-            ) : tasks.map(t => (
-              <tr key={t.id} style={{ borderBottom: '0.5px solid var(--border)' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                <td style={{ ...tdStyle, maxWidth: 280 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</div>
-                  {t.category && <div style={{ fontSize: 11, color: 'var(--muted)' }}>{t.category}</div>}
-                </td>
-                <td style={{ ...tdStyle, fontSize: 12 }}>
-                  {t.assignee ? `${t.assignee.firstName} ${t.assignee.lastName}` : '—'}
-                </td>
-                <td style={{ ...tdStyle, fontSize: 12, color: 'var(--muted)' }}>{t.team?.name || '—'}</td>
-                <td style={tdStyle}>
-                  <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, color: PC[t.priority] || '#6B7280', background: `${PC[t.priority]}20` }}>{t.priority}</span>
-                </td>
-                <td style={tdStyle}>
-                  <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, color: SC[t.status] || '#6B7280', background: `${SC[t.status]}20` }}>{t.status?.replace('_', ' ')}</span>
-                </td>
-                <td style={{ ...tdStyle, fontSize: 12, color: t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'COMPLETED' ? '#EF4444' : 'var(--muted)' }}>
-                  {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : '—'}
-                </td>
-                <td style={{ ...tdStyle, fontSize: 12 }}>{t.isEscalated ? '🚨 Yes' : '—'}</td>
+          <table style={{ width:'100%', borderCollapse:'collapse', minWidth:600 }}>
+            <thead>
+              <tr style={{ background:'var(--surface-2)', borderBottom:'1px solid var(--border)' }}>
+                {['Title','Assignee','Team','Priority','Status','Due Date','Escalated'].map(h => (
+                  <th key={h} style={thStyle}>{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>{/* end tableScroll */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderTop: '0.5px solid var(--border)', fontSize: 12, color: 'var(--muted)' }}>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={7} style={{ ...tdStyle, textAlign:'center', color:'var(--muted)', padding:40 }}>Loading…</td></tr>
+              ) : tasks.length === 0 ? (
+                <tr><td colSpan={7} style={{ ...tdStyle, textAlign:'center', color:'var(--muted)', padding:40 }}>No tasks found. Create one above.</td></tr>
+              ) : tasks.map(t => (
+                <tr key={t.id} style={{ borderBottom:'1px solid var(--border)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  <td style={{ ...tdStyle, maxWidth:260 }}>
+                    <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.title}</div>
+                    {t.category && <div style={{ fontSize:11, color:'var(--muted)' }}>{t.category}</div>}
+                  </td>
+                  <td style={{ ...tdStyle, fontSize:12 }}>{t.assignee ? `${t.assignee.firstName} ${t.assignee.lastName}` : '—'}</td>
+                  <td style={{ ...tdStyle, fontSize:12, color:'var(--muted)' }}>{t.team?.name || '—'}</td>
+                  <td style={tdStyle}>
+                    <span style={{ padding:'3px 9px', borderRadius:99, fontSize:11, fontWeight:700, color:PC[t.priority]||'#6B7280', background:`${PC[t.priority]||'#6B7280'}18` }}>{t.priority}</span>
+                  </td>
+                  <td style={tdStyle}>
+                    <span style={{ padding:'3px 9px', borderRadius:99, fontSize:11, fontWeight:700, color:SC[t.status]||'#6B7280', background:`${SC[t.status]||'#6B7280'}18` }}>{t.status?.replace('_',' ')}</span>
+                  </td>
+                  <td style={{ ...tdStyle, fontSize:12, color: t.dueDate && new Date(t.dueDate)<new Date() && t.status!=='COMPLETED' ? '#EF4444' : 'var(--muted)' }}>
+                    {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : '—'}
+                  </td>
+                  <td style={{ ...tdStyle, fontSize:12 }}>{t.isEscalated ? '🚨 Yes' : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ display:'flex', justifyContent:'space-between', padding:'12px 16px', borderTop:'1px solid var(--border)', fontSize:12, color:'var(--muted)', alignItems:'center' }}>
           <span>{total > 0 ? `Showing ${((page-1)*LIMIT)+1}–${Math.min(page*LIMIT,total)} of ${total}` : '0 tasks'}</span>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setPage(p => Math.max(1,p-1))} disabled={page===1} style={{ ...btnSecondary, padding:'4px 10px', opacity: page===1?0.4:1 }}>← Prev</button>
-            <button onClick={() => setPage(p => p+1)} disabled={page>=totalPages} style={{ ...btnSecondary, padding:'4px 10px', opacity: page>=totalPages?0.4:1 }}>Next →</button>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => setPage(p => Math.max(1,p-1))} disabled={page===1} style={{ ...btnSecondary, padding:'5px 12px', opacity:page===1?0.4:1 }}>← Prev</button>
+            <button onClick={() => setPage(p => p+1)} disabled={page>=totalPages} style={{ ...btnSecondary, padding:'5px 12px', opacity:page>=totalPages?0.4:1 }}>Next →</button>
           </div>
+        </div>
+      </div>
+
+      {/* ── Mobile card list ──────────────────────────────── */}
+      <div className="m-card-list">
+        {loading ? (
+          <div style={{ textAlign:'center', padding:'32px 0', color:'var(--muted)' }}>Loading…</div>
+        ) : tasks.length === 0 ? (
+          <div style={{ textAlign:'center', padding:'32px 0', color:'var(--muted)' }}>No tasks found.</div>
+        ) : tasks.map(t => (
+          <div key={t.id} className="m-item-card">
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
+              <div className="m-item-card__title">{t.title}</div>
+              <span style={{ padding:'3px 10px', borderRadius:99, fontSize:11, fontWeight:700, flexShrink:0,
+                color:PC[t.priority]||'#6B7280', background:`${PC[t.priority]||'#6B7280'}18` }}>
+                {t.priority}
+              </span>
+            </div>
+            <div className="m-item-card__row">
+              {t.assignee && (
+                <span className="m-item-card__meta">
+                  <span>👤</span>{t.assignee.firstName} {t.assignee.lastName}
+                </span>
+              )}
+              {t.team && (
+                <span className="m-item-card__meta">
+                  <span>👥</span>{t.team.name}
+                </span>
+              )}
+            </div>
+            <div className="m-item-card__row" style={{ justifyContent:'space-between' }}>
+              <span style={{ padding:'4px 12px', borderRadius:99, fontSize:11, fontWeight:700,
+                color:SC[t.status]||'#6B7280', background:`${SC[t.status]||'#6B7280'}18` }}>
+                {t.status?.replace('_',' ')}
+              </span>
+              {t.dueDate && (
+                <span className="m-item-card__meta" style={{ color: new Date(t.dueDate)<new Date() && t.status!=='COMPLETED' ? '#EF4444' : undefined }}>
+                  📅 {new Date(t.dueDate).toLocaleDateString()}
+                </span>
+              )}
+              {t.isEscalated && <span style={{ fontSize:12 }}>🚨 Escalated</span>}
+            </div>
+          </div>
+        ))}
+        {/* Mobile pagination */}
+        <div style={{ display:'flex', gap:10, padding:'4px 0 8px' }}>
+          <button onClick={() => setPage(p => Math.max(1,p-1))} disabled={page===1}
+            style={{ ...btnSecondary, flex:1, opacity:page===1?0.4:1, justifyContent:'center' }}>← Prev</button>
+          <button onClick={() => setPage(p => p+1)} disabled={page>=totalPages}
+            style={{ ...btnSecondary, flex:1, opacity:page>=totalPages?0.4:1, justifyContent:'center' }}>Next →</button>
         </div>
       </div>
 
@@ -725,72 +777,128 @@ export function LeavePage() {
   };
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+    <div className="pg-page" style={{ padding:24 }}>
+      <div className="pg-page-header" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Leave Management</h1>
-          <p style={{ color: 'var(--muted)', fontSize: 13 }}>{total} requests</p>
+          <h1 style={{ fontSize:22, fontWeight:800, marginBottom:3, letterSpacing:-.3 }}>Leave Management</h1>
+          <p style={{ color:'var(--muted)', fontSize:13 }}>{total} requests</p>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        {['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', ''].map(s => (
+      {/* Filter chips — scrollable single row */}
+      <div className="chip-bar">
+        {['PENDING','APPROVED','REJECTED','CANCELLED',''].map(s => (
           <button key={s} onClick={() => setStatus(s)}
-            style={{ padding: '6px 14px', borderRadius: 20, border: '1px solid var(--border)', cursor: 'pointer', fontSize: 12, fontWeight: 500,
-              background: status === s ? '#6366F1' : 'var(--bg)', color: status === s ? '#fff' : 'var(--text)' }}>
+            className={`chip${status === s ? ' active' : ''}`}>
             {s || 'All'}
           </button>
         ))}
       </div>
 
-      <div style={cardStyle}>
+      {/* ── Desktop table ──────────────────────────────── */}
+      <div className="m-table" style={cardStyle}>
         <div style={tableScroll}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: 'var(--bg)', borderBottom: '0.5px solid var(--border)' }}>
-              {['Employee', 'Type', 'Dates', 'Days', 'Reason', 'Status', 'Reviewed By', 'Actions'].map(h => (
-                <th key={h} style={thStyle}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={8} style={{ ...tdStyle, textAlign: 'center', color: 'var(--muted)', padding: 40 }}>Loading…</td></tr>
-            ) : leaves.length === 0 ? (
-              <tr><td colSpan={8} style={{ ...tdStyle, textAlign: 'center', color: 'var(--muted)', padding: 40 }}>No {status || ''} leave requests.</td></tr>
-            ) : leaves.map(l => (
-              <tr key={l.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
-                <td style={{ ...tdStyle, fontSize: 13, fontWeight: 500 }}>{l.user?.firstName} {l.user?.lastName}</td>
-                <td style={tdStyle}>
-                  <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, color: LC[l.type] || '#6B7280', background: `${LC[l.type] || '#6B7280'}20` }}>{l.type}</span>
-                </td>
-                <td style={{ ...tdStyle, fontSize: 12 }}>
-                  {new Date(l.startDate).toLocaleDateString()} – {new Date(l.endDate).toLocaleDateString()}
-                </td>
-                <td style={{ ...tdStyle, fontSize: 13, fontWeight: 600 }}>{l.totalDays}d</td>
-                <td style={{ ...tdStyle, fontSize: 12, maxWidth: 180 }}>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{l.reason}</span>
-                </td>
-                <td style={tdStyle}>
-                  <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, color: SC[l.status] || '#6B7280', background: `${SC[l.status] || '#6B7280'}20` }}>{l.status}</span>
-                </td>
-                <td style={{ ...tdStyle, fontSize: 12, color: 'var(--muted)' }}>
-                  {l.reviewer ? `${l.reviewer.firstName} ${l.reviewer.lastName}` : '—'}
-                </td>
-                <td style={tdStyle}>
-                  {l.status === 'PENDING' && (
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => review(l.id, 'APPROVED')} style={btnSuccess}>✓ Approve</button>
-                      <button onClick={() => review(l.id, 'REJECTED')} style={btnDanger}>✗ Reject</button>
-                    </div>
-                  )}
-                  {l.reviewNote && <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4, maxWidth: 120 }}>{l.reviewNote}</div>}
-                </td>
+          <table style={{ width:'100%', borderCollapse:'collapse', minWidth:680 }}>
+            <thead>
+              <tr style={{ background:'var(--surface-2)', borderBottom:'1px solid var(--border)' }}>
+                {['Employee','Type','Dates','Days','Reason','Status','Reviewed By','Actions'].map(h => (
+                  <th key={h} style={thStyle}>{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>{/* end tableScroll */}
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={8} style={{ ...tdStyle, textAlign:'center', color:'var(--muted)', padding:40 }}>Loading…</td></tr>
+              ) : leaves.length === 0 ? (
+                <tr><td colSpan={8} style={{ ...tdStyle, textAlign:'center', color:'var(--muted)', padding:40 }}>No {status||''} leave requests.</td></tr>
+              ) : leaves.map(l => (
+                <tr key={l.id} style={{ borderBottom:'1px solid var(--border)' }}>
+                  <td style={{ ...tdStyle, fontSize:13, fontWeight:600 }}>{l.user?.firstName} {l.user?.lastName}</td>
+                  <td style={tdStyle}>
+                    <span style={{ padding:'3px 9px', borderRadius:99, fontSize:11, fontWeight:700, color:LC[l.type]||'#6B7280', background:`${LC[l.type]||'#6B7280'}18` }}>{l.type}</span>
+                  </td>
+                  <td style={{ ...tdStyle, fontSize:12, whiteSpace:'nowrap' }}>
+                    {new Date(l.startDate).toLocaleDateString()} – {new Date(l.endDate).toLocaleDateString()}
+                  </td>
+                  <td style={{ ...tdStyle, fontSize:13, fontWeight:700 }}>{l.totalDays}d</td>
+                  <td style={{ ...tdStyle, fontSize:12, maxWidth:160 }}>
+                    <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', display:'block' }}>{l.reason}</span>
+                  </td>
+                  <td style={tdStyle}>
+                    <span style={{ padding:'3px 9px', borderRadius:99, fontSize:11, fontWeight:700, color:SC[l.status]||'#6B7280', background:`${SC[l.status]||'#6B7280'}18` }}>{l.status}</span>
+                  </td>
+                  <td style={{ ...tdStyle, fontSize:12, color:'var(--muted)' }}>
+                    {l.reviewer ? `${l.reviewer.firstName} ${l.reviewer.lastName}` : '—'}
+                  </td>
+                  <td style={tdStyle}>
+                    {l.status === 'PENDING' && (
+                      <div style={{ display:'flex', gap:6 }}>
+                        <button onClick={() => review(l.id, 'APPROVED')} style={btnSuccess}>✓ Approve</button>
+                        <button onClick={() => review(l.id, 'REJECTED')} style={btnDanger}>✗ Reject</button>
+                      </div>
+                    )}
+                    {l.reviewNote && <div style={{ fontSize:10, color:'var(--muted)', marginTop:4 }}>{l.reviewNote}</div>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Mobile card list ──────────────────────────── */}
+      <div className="m-card-list">
+        {loading ? (
+          <div style={{ textAlign:'center', padding:'32px 0', color:'var(--muted)' }}>Loading…</div>
+        ) : leaves.length === 0 ? (
+          <div style={{ textAlign:'center', padding:'32px 0', color:'var(--muted)' }}>No {status||''} leave requests.</div>
+        ) : leaves.map(l => (
+          <div key={l.id} className="m-item-card">
+            {/* Name + type badge */}
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
+              <div className="m-item-card__title">{l.user?.firstName} {l.user?.lastName}</div>
+              <span style={{ padding:'3px 10px', borderRadius:99, fontSize:11, fontWeight:700, flexShrink:0,
+                color:LC[l.type]||'#6B7280', background:`${LC[l.type]||'#6B7280'}18` }}>
+                {l.type}
+              </span>
+            </div>
+            {/* Dates + days */}
+            <div className="m-item-card__row">
+              <span className="m-item-card__meta">
+                📅 {new Date(l.startDate).toLocaleDateString()} – {new Date(l.endDate).toLocaleDateString()}
+              </span>
+              <span style={{ fontSize:12, fontWeight:700, color:'var(--text)', background:'var(--surface-2)',
+                padding:'2px 8px', borderRadius:6 }}>
+                {l.totalDays}d
+              </span>
+            </div>
+            {/* Reason */}
+            {l.reason && (
+              <div style={{ fontSize:12, color:'var(--muted)', fontStyle:'italic', lineHeight:1.4 }}>"{l.reason}"</div>
+            )}
+            {/* Status row */}
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <span style={{ padding:'4px 12px', borderRadius:99, fontSize:11, fontWeight:700,
+                color:SC[l.status]||'#6B7280', background:`${SC[l.status]||'#6B7280'}18` }}>
+                {l.status}
+              </span>
+              {l.reviewer && (
+                <span className="m-item-card__meta">✅ {l.reviewer.firstName} {l.reviewer.lastName}</span>
+              )}
+            </div>
+            {/* Action buttons for pending */}
+            {l.status === 'PENDING' && (
+              <div className="m-item-card__actions">
+                <button className="m-btn-approve" onClick={() => review(l.id, 'APPROVED')}>✓ Approve</button>
+                <button className="m-btn-reject"  onClick={() => review(l.id, 'REJECTED')}>✗ Reject</button>
+              </div>
+            )}
+            {l.reviewNote && (
+              <div style={{ fontSize:11, color:'var(--muted)', padding:'6px 10px',
+                background:'var(--surface-2)', borderRadius:8 }}>📝 {l.reviewNote}</div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
