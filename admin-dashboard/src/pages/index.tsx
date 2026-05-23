@@ -1,12 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import axios from 'axios';
-
-const API = axios.create({ baseURL: '/api/v1' });
-API.interceptors.request.use((c) => {
-  const t = localStorage.getItem('accessToken');
-  if (t) c.headers.Authorization = `Bearer ${t}`;
-  return c;
-});
+import { API } from '../lib/api';
 
 /* ─── shared style helpers ──────────────────────────────────────── */
 const cardStyle: React.CSSProperties = { background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: 12, overflow: 'hidden' };

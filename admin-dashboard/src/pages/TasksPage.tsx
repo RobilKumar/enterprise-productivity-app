@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { API } from '../lib/api';
 import { Search, Plus, Filter, RefreshCw, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
 
 interface Task {
@@ -58,7 +58,7 @@ export default function TasksPage() {
       if (search)   params.search   = search;
       if (statusF)  params.status   = statusF;
       if (priorityF) params.priority = priorityF;
-      const { data } = await axios.get('/api/v1/tasks', { params });
+      const { data } = await API.get('/tasks', { params });
       setTasks(data.data);
       setTotal(data.pagination.total);
     } catch { /* */ }
@@ -67,8 +67,8 @@ export default function TasksPage() {
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
   useEffect(() => {
-    axios.get('/api/v1/users?limit=200').then(r => setUsers(r.data.data || [])).catch(() => {});
-    axios.get('/api/v1/teams').then(r => setTeams(r.data.data || [])).catch(() => {});
+    API.get('/users?limit=200').then(r => setUsers(r.data.data || [])).catch(() => {});
+    API.get('/teams').then(r => setTeams(r.data.data || [])).catch(() => {});
   }, []);
 
   function isOverdue(t: Task) {
@@ -78,7 +78,7 @@ export default function TasksPage() {
   async function createTask() {
     setSaving(true);
     try {
-      await axios.post('/api/v1/tasks', { ...form, estimatedHours: form.estimatedHours ? parseFloat(form.estimatedHours) : undefined });
+      await API.post('/tasks', { ...form, estimatedHours: form.estimatedHours ? parseFloat(form.estimatedHours) : undefined });
       setShowCreate(false);
       fetchTasks();
     } catch { /* */ }

@@ -1,39 +1,94 @@
 import React, { useState, createContext, useContext, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
+import { API } from './lib/api';
+export { API } from './lib/api'; // re-export so existing consumers still work
 import { DashboardPage } from './pages/DashboardPage';
 import { EmployeesPage, TasksManagementPage, AttendancePage, LeavePage, AuditPage } from './pages/index';
-
-// ─── API client ───────────────────────────────────────────────
-// VITE_API_URL is set in .env.mobile for native builds; falls back to
-// the nginx proxy path (/api/v1) for the web/Docker build.
-export const API = axios.create({
-  baseURL: (import.meta.env.VITE_API_URL as string) || '/api/v1',
-});
-API.interceptors.request.use(c => {
-  const t = localStorage.getItem('accessToken');
-  if (t) c.headers.Authorization = `Bearer ${t}`;
-  return c;
-});
-API.interceptors.response.use(r => r, async err => {
-  if (err.response?.status === 401) {
-    const refresh = localStorage.getItem('refreshToken');
-    if (refresh) {
-      try {
-        const { data } = await axios.post('/api/v1/auth/refresh', { refreshToken: refresh });
-        localStorage.setItem('accessToken',  data.data.accessToken);
-        localStorage.setItem('refreshToken', data.data.refreshToken);
-        err.config.headers.Authorization = `Bearer ${data.data.accessToken}`;
-        return API(err.config);
-      } catch { localStorage.clear(); window.location.href = '/'; }
-    }
-  }
-  return Promise.reject(err);
-});
 
 // ─── Auth context ─────────────────────────────────────────────
 const AuthCtx = createContext<any>(null);
 export const useAuth = () => useContext(AuthCtx);
+
+// ─── Error Boundary ───────────────────────────────────────────
+// Catches any page-level crash and shows a friendly screen instead of blank white.
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; message: string }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, message: '' };
+  }
+  static getDerivedStateFromError(err: any) {
+    return { hasError: true, message: String(err?.message || err) };
+  }
+  componentDidCatch(err: any, info: any) {
+    console.error('Page crash:', err, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+          minHeight:'60vh', padding:32, textAlign:'center',
+        }}>
+          <div style={{ fontSize:52, marginBottom:16 }}>😕</div>
+          <div style={{ fontSize:18, fontWeight:700, marginBottom:8, color:'var(--text)' }}>
+            Something went wrong
+          </div>
+          <div style={{ fontSize:13, color:'var(--muted)', marginBottom:24, maxWidth:300 }}>
+            {this.state.message || 'An unexpected error occurred on this page.'}
+          </div>
+          <button
+            onClick={() => { this.setState({ hasError:false, message:'' }); window.history.back(); }}
+            style={{
+              padding:'10px 24px', borderRadius:10, background:'var(--primary)',
+              color:'#fff', border:'none', cursor:'pointer', fontWeight:600, fontSize:14,
+            }}>
+            ← Go Back
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ─── Logout Confirmation Dialog ───────────────────────────────
+function LogoutConfirm({ onConfirm, onCancel }: { onConfirm:()=>void; onCancel:()=>void }) {
+  return (
+    <div style={{
+      position:'fixed', inset:0, background:'rgba(0,0,0,.5)',
+      display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:9999,
+    }} onClick={onCancel}>
+      <div style={{
+        width:'100%', maxWidth:480, background:'var(--surface)',
+        borderRadius:'24px 24px 0 0', padding:'20px 24px 32px',
+        boxShadow:'0 -4px 32px rgba(0,0,0,.18)',
+        animation:'slideUp .2s cubic-bezier(.32,1,.56,1)',
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{ width:40, height:4, background:'var(--border)', borderRadius:2, margin:'0 auto 20px' }} />
+        <div style={{ fontSize:20, marginBottom:8, textAlign:'center' }}>👋</div>
+        <div style={{ fontWeight:700, fontSize:17, textAlign:'center', marginBottom:6 }}>Sign out?</div>
+        <div style={{ fontSize:13, color:'var(--muted)', textAlign:'center', marginBottom:24 }}>
+          You'll need to sign in again to access your workspace.
+        </div>
+        <div style={{ display:'flex', gap:12 }}>
+          <button onClick={onCancel} style={{
+            flex:1, padding:'13px', borderRadius:12, border:'1.5px solid var(--border)',
+            background:'var(--bg)', color:'var(--text)', cursor:'pointer',
+            fontWeight:600, fontSize:15, fontFamily:'inherit',
+          }}>Cancel</button>
+          <button onClick={onConfirm} style={{
+            flex:1, padding:'13px', borderRadius:12, border:'none',
+            background:'#EF4444', color:'#fff', cursor:'pointer',
+            fontWeight:700, fontSize:15, fontFamily:'inherit',
+          }}>Sign Out</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── Shared style helpers (used throughout all pages) ─────────
 const labelStyle: React.CSSProperties = {
@@ -1594,10 +1649,11 @@ function RightsMasterPage() {
 
 // ─── Root App ─────────────────────────────────────────────────
 export default function AdminApp() {
-  const [user,  setUser]  = useState<any>(() => {
+  const [user,         setUser]         = useState<any>(() => {
     try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; }
   });
-  const [theme, setTheme] = useState<'light'|'dark'>(() => localStorage.getItem('theme') as any || 'light');
+  const [theme,        setTheme]        = useState<'light'|'dark'>(() => localStorage.getItem('theme') as any || 'light');
+  const [showLogoutDlg, setShowLogoutDlg] = useState(false);
 
   const login = (d: any) => {
     localStorage.setItem('accessToken',  d.accessToken);
@@ -1605,7 +1661,8 @@ export default function AdminApp() {
     localStorage.setItem('user', JSON.stringify(d.user));
     setUser(d.user);
   };
-  const logout = () => { localStorage.clear(); setUser(null); };
+  const requestLogout = () => setShowLogoutDlg(true);
+  const logout        = () => { localStorage.clear(); setUser(null); setShowLogoutDlg(false); };
   const toggleTheme = () => setTheme(t => {
     const next = t === 'light' ? 'dark' : 'light';
     localStorage.setItem('theme', next);
@@ -1624,36 +1681,43 @@ export default function AdminApp() {
           ) : (
             <>
               {/* Desktop: left sidebar */}
-              <Sidebar user={user} logout={logout} toggleTheme={toggleTheme} isDark={isDark} />
+              <Sidebar user={user} logout={requestLogout} toggleTheme={toggleTheme} isDark={isDark} />
 
               {/* Mobile: fixed top bar (hidden on desktop via CSS) */}
-              <MobileTopBar user={user} logout={logout} isDark={isDark} toggleTheme={toggleTheme} />
+              <MobileTopBar user={user} logout={requestLogout} isDark={isDark} toggleTheme={toggleTheme} />
 
-              {/* Page content */}
+              {/* Page content — wrapped in ErrorBoundary so crashes show a message, not blank white */}
               <main className="app-main" style={{ flex:1, overflowY:'auto', minHeight:'100vh', background:'var(--bg)' }}>
-                <Routes>
-                  <Route path="/"             element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard"    element={<DashboardPage />} />
-                  <Route path="/my-tasks"     element={<MyTasksPage />} />
-                  <Route path="/tasks"        element={<TasksManagementPage />} />
-                  <Route path="/employees"    element={<EmployeesPage />} />
-                  <Route path="/departments"  element={<DepartmentsPage />} />
-                  <Route path="/shifts"       element={<ShiftMasterPage />} />
-                  <Route path="/plants"       element={<PlantMasterPage />} />
-                  <Route path="/teams"        element={<TeamsPage />} />
-                  <Route path="/attendance"   element={<AttendancePage />} />
-                  <Route path="/leaves"       element={<LeavePage />} />
-                  <Route path="/kpi"          element={<KpiPage />} />
-                  <Route path="/rights"       element={<RightsMasterPage />} />
-                  <Route path="/announcements"element={<AnnouncementsPage />} />
-                  <Route path="/leaderboard"  element={<LeaderboardPage />} />
-                  <Route path="/audit"        element={<AuditPage />} />
-                  <Route path="*"             element={<Navigate to="/dashboard" replace />} />
-                </Routes>
+                <ErrorBoundary>
+                  <Routes>
+                    <Route path="/"             element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/dashboard"    element={<DashboardPage />} />
+                    <Route path="/my-tasks"     element={<MyTasksPage />} />
+                    <Route path="/tasks"        element={<TasksManagementPage />} />
+                    <Route path="/employees"    element={<EmployeesPage />} />
+                    <Route path="/departments"  element={<DepartmentsPage />} />
+                    <Route path="/shifts"       element={<ShiftMasterPage />} />
+                    <Route path="/plants"       element={<PlantMasterPage />} />
+                    <Route path="/teams"        element={<TeamsPage />} />
+                    <Route path="/attendance"   element={<AttendancePage />} />
+                    <Route path="/leaves"       element={<LeavePage />} />
+                    <Route path="/kpi"          element={<KpiPage />} />
+                    <Route path="/rights"       element={<RightsMasterPage />} />
+                    <Route path="/announcements"element={<AnnouncementsPage />} />
+                    <Route path="/leaderboard"  element={<LeaderboardPage />} />
+                    <Route path="/audit"        element={<AuditPage />} />
+                    <Route path="*"             element={<Navigate to="/dashboard" replace />} />
+                  </Routes>
+                </ErrorBoundary>
               </main>
 
               {/* Mobile: bottom navigation (hidden on desktop via CSS) */}
               <BottomNav user={user} />
+
+              {/* Logout confirmation dialog */}
+              {showLogoutDlg && (
+                <LogoutConfirm onConfirm={logout} onCancel={() => setShowLogoutDlg(false)} />
+              )}
             </>
           )}
         </BrowserRouter>
