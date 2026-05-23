@@ -40,14 +40,14 @@ const ResetSchema   = z.object({
 // ─── Helper: Generate tokens ──────────────────────────────────
 function signAccessToken(payload: Record<string, unknown>): string {
   return jwt.sign(payload, process.env.JWT_SECRET!, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '15m',
+    expiresIn: (process.env.JWT_EXPIRES_IN || '15m') as any,
     algorithm: 'HS256',
   });
 }
 
 function signRefreshToken(payload: Record<string, unknown>): string {
   return jwt.sign(payload, process.env.JWT_REFRESH_SECRET!, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+    expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as any,
     algorithm: 'HS256',
   });
 }

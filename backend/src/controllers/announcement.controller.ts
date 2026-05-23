@@ -72,12 +72,17 @@ export async function createAnnouncement(req: AuthRequest, res: Response, next: 
 
     // Broadcast push notification for urgent announcements
     if (body.priority === 'URGENT') {
-      await NotificationService.broadcast({
-        type:  'ANNOUNCEMENT',
-        title: `🚨 ${body.title}`,
-        body:  body.content.substring(0, 100),
-        data:  { announcementId: announcement.id },
+      const allUsers = await prisma.user.findMany({
+        where: { status: 'ACTIVE', deletedAt: null },
+        select: { id: true },
       });
+      await NotificationService.broadcast(
+        allUsers.map(u => u.id),
+        'ANNOUNCEMENT',
+        `🚨 ${body.title}`,
+        body.content.substring(0, 100),
+        { announcementId: announcement.id },
+      );
     }
 
     return res.status(201).json({ success: true, data: announcement });
