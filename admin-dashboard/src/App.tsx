@@ -2406,44 +2406,62 @@ function GatepassPage() {
 
   // ── Socket.IO real-time connection ──────────────────────────────
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
+    const token  = localStorage.getItem('accessToken');
     if (!token) return;
-    const base = (import.meta.env.VITE_API_URL as string || '').replace('/api/v1', '');
+    const myId   = user?.id as string | undefined;   // current logged-in user
+    const base   = (import.meta.env.VITE_API_URL as string || '').replace('/api/v1', '');
     const socket = socketIO(base, {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 5,
     });
 
-    socket.on('connect', () => console.log('[Gatepass] 🔌 Socket connected:', socket.id));
+    socket.on('connect',    () => console.log('[Gatepass] 🔌 Socket connected:', socket.id));
     socket.on('disconnect', () => console.log('[Gatepass] 🔌 Socket disconnected'));
 
+    // gatepass:new  — notify EVERYONE except the person who raised it
     socket.on('gatepass:new', (data: any) => {
-      const who = data.requester ? `${data.requester.firstName} ${data.requester.lastName}` : 'Someone';
-      addToast(`🚪 New outpass request from ${who}`, 'info');
+      if (data.requesterId !== myId) {
+        const who = data.name || 'Someone';
+        addToast(`🚪 New outpass: ${who} → ${data.destination || ''}`, 'info');
+      }
       setGpTick(t => t + 1);
     });
+
+    // gatepass:approved — notify ONLY the requester
     socket.on('gatepass:approved', (data: any) => {
-      addToast(`✅ Gatepass ${data.passNumber || ''} approved!`, 'success');
+      if (data.requesterId === myId) {
+        addToast(`✅ Your gatepass ${data.passNumber || ''} has been approved!`, 'success');
+      }
       setGpTick(t => t + 1);
     });
+
+    // gatepass:rejected — notify ONLY the requester
     socket.on('gatepass:rejected', (data: any) => {
-      addToast(`❌ Gatepass ${data.passNumber || ''} rejected`, 'error');
+      if (data.requesterId === myId) {
+        addToast(`❌ Your gatepass ${data.passNumber || ''} was rejected`, 'error');
+      }
       setGpTick(t => t + 1);
     });
+
+    // gatepass:exited — notify everyone EXCEPT the employee who exited (they already know)
     socket.on('gatepass:exited', (data: any) => {
-      const who = data.requester ? `${data.requester.firstName} ${data.requester.lastName}` : 'An employee';
-      addToast(`🚶 ${who} exited the premises`, 'info');
+      if (data.requesterId !== myId) {
+        addToast(`🚶 ${data.name || 'An employee'} exited — ${data.passNumber || ''}`, 'info');
+      }
       setGpTick(t => t + 1);
     });
+
+    // gatepass:returned — notify everyone EXCEPT the employee who returned
     socket.on('gatepass:returned', (data: any) => {
-      const who = data.requester ? `${data.requester.firstName} ${data.requester.lastName}` : 'An employee';
-      addToast(`🏠 ${who} has returned`, 'success');
+      if (data.requesterId !== myId) {
+        addToast(`🏠 ${data.name || 'An employee'} returned — ${data.passNumber || ''}`, 'success');
+      }
       setGpTick(t => t + 1);
     });
 
     return () => { socket.disconnect(); };
-  }, []); // connect once per mount
+  }, []); // connect once per mount — user.id is captured via closure at mount time
 
   return (
     <div style={{ padding:24 }}>
