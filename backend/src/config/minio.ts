@@ -11,8 +11,14 @@ const BUCKETS = [
 ];
 
 export async function initMinIO(): Promise<void> {
+  // Skip MinIO if endpoint is not configured (e.g. cloud deployments without object storage)
+  if (!process.env.MINIO_ENDPOINT) {
+    logger.info('MinIO disabled — MINIO_ENDPOINT not set, file uploads unavailable');
+    return;
+  }
+
   minioClient = new Minio.Client({
-    endPoint:  process.env.MINIO_ENDPOINT || 'localhost',
+    endPoint:  process.env.MINIO_ENDPOINT,
     port:      Number(process.env.MINIO_PORT) || 9000,
     useSSL:    process.env.MINIO_USE_SSL === 'true',
     accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
