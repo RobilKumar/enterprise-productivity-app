@@ -1,6 +1,8 @@
 import React, { useState, useRef, createContext, useContext, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { io as socketIO } from 'socket.io-client';
+import { BiometricAuth, BiometryErrorType } from '@aparajita/capacitor-biometric-auth';
+import { App as CapApp }  from '@capacitor/app';
 import { API } from './lib/api';
 export { API } from './lib/api'; // re-export so existing consumers still work
 import { DashboardPage } from './pages/DashboardPage';
@@ -672,6 +674,12 @@ function BottomNav({ user }: any) {
                 </div>
               </>
             )}
+
+            {/* Security Settings — fingerprint toggle (only on native device) */}
+            <div style={{ borderTop:'1px solid var(--border)', margin:'0 -4px', padding:'14px 4px 4px' }}>
+              <div className="m-drawer__section" style={{ paddingTop:0, marginBottom:10 }}>Security</div>
+              <BiometricToggle />
+            </div>
 
             <div style={{ height: 16 }} />
           </div>
@@ -1787,6 +1795,234 @@ function ToastContainer({ toasts, remove }: { toasts: ToastItem[]; remove: (id: 
 }
 
 // ═══════════════════════════════════════════════════════════════════
+//  BIOMETRIC AUTHENTICATION
+//
+//  HOW IT WORKS — a quick guide for understanding the code:
+//
+//  1. PLUGIN  : @aparajita/capacitor-biometric-auth
+//               Capacitor is the "bridge" between your React (web) code
+//               and the native Android/iOS APIs.  This plugin wraps
+//               Android's BiometricPrompt API and iOS's LocalAuthentication.
+//
+//  2. BiometricAuth.checkBiometry()
+//               Asks the device: "Do you have a fingerprint sensor / face ID
+//               that is enrolled?"  Returns { isAvailable, biometryType }.
+//               We call this when the user first tries to enable the feature
+//               so we don't offer it on devices that don't support it.
+//
+//  3. BiometricAuth.authenticate({ ... })
+//               Shows the native OS fingerprint/face dialog.
+//               - Resolves (void)  → fingerprint matched ✅
+//               - Rejects (BiometryError) → user cancelled or too many fails
+//
+//  4. CapApp.addListener('appStateChange', ...)
+//               @capacitor/app lets us listen to foreground/background
+//               transitions.  isActive=false means the user left the app;
+//               isActive=true means they came back.  We use this to
+//               RE-LOCK the app every time it's backgrounded, so nobody
+//               can peek when the user returns.
+//
+//  5. STORAGE  : localStorage key 'bio_enabled'
+//               Persisted across app restarts.  User can toggle it
+//               in Profile → Security.  Fully optional — if the device
+//               has no biometric sensor, the toggle is hidden.
+//
+//  FLOW:
+//    App opens
+//      └─► bio_enabled?  YES → show <LockScreen> overlay
+//                             └─► user taps "Unlock" → authenticate()
+//                                   ├─► success  → hide overlay, show app
+//                                   └─► fail/cancel → stay locked
+//    User backgrounds the app
+//      └─► locked = true
+//    User re-opens the app
+//      └─► bio_enabled && locked → show <LockScreen> again
+// ═══════════════════════════════════════════════════════════════════
+
+const BIO_KEY = 'bio_enabled';           // localStorage key for the user preference
+const IS_NATIVE = !!(window as any).Capacitor?.isNativePlatform?.();  // true only inside the APK
+
+// ── useBiometric hook ────────────────────────────────────────────
+// Encapsulates all biometric logic so the UI stays clean.
+function useBiometric() {
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [bioEnabled,   setBioEnabled]   = useState(() => localStorage.getItem(BIO_KEY) === '1');
+  const [locked,       setLocked]       = useState(() => IS_NATIVE && localStorage.getItem(BIO_KEY) === '1');
+  const [bioError,     setBioError]     = useState('');
+  const [verifying,    setVerifying]    = useState(false);
+
+  // On mount: check if this device actually has a biometric sensor
+  useEffect(() => {
+    if (!IS_NATIVE) return;  // skip on web (no fingerprint sensor in browser)
+    BiometricAuth.checkBiometry()
+      .then(result => setBioAvailable(result.isAvailable))
+      .catch(() => setBioAvailable(false));
+  }, []);
+
+  // Listen to app foreground/background transitions
+  useEffect(() => {
+    if (!IS_NATIVE || !bioEnabled) return;
+    let listener: any;
+    CapApp.addListener('appStateChange', (state) => {
+      if (!state.isActive) {
+        // App went to background → lock it for when they return
+        setLocked(true);
+      }
+      // When isActive=true (foreground), the LockScreen is already showing
+      // because locked=true, so the user will be prompted automatically
+    }).then(h => { listener = h; });
+    return () => { listener?.remove(); };
+  }, [bioEnabled]);
+
+  // Show the native fingerprint dialog
+  const authenticate = useCallback(async () => {
+    if (!IS_NATIVE) return;
+    setVerifying(true);
+    setBioError('');
+    try {
+      await BiometricAuth.authenticate({
+        reason:                'Unlock Enterprise App',
+        androidTitle:          'Fingerprint Login',
+        androidSubtitle:       'Use your fingerprint to continue',
+        allowDeviceCredential: true,   // fallback to PIN/pattern if fingerprint fails
+        cancelTitle:           'Cancel',
+      });
+      // ✅ Authentication passed — remove the lock screen
+      setLocked(false);
+      setBioError('');
+    } catch (err: any) {
+      const code = err?.code as BiometryErrorType | undefined;
+      if (code === BiometryErrorType.userCancel || code === BiometryErrorType.systemCancel) {
+        setBioError('Authentication cancelled.');
+      } else if (code === BiometryErrorType.biometryLockout) {
+        setBioError('Too many attempts. Use your PIN to unlock.');
+      } else {
+        setBioError(err?.message || 'Fingerprint not recognised. Try again.');
+      }
+    }
+    setVerifying(false);
+  }, []);
+
+  // Toggle the setting on/off (called from Profile settings)
+  const toggleBio = useCallback(async (enable: boolean) => {
+    if (enable) {
+      // Verify once before enabling so the user knows it works
+      try {
+        await BiometricAuth.authenticate({
+          reason:      'Confirm fingerprint to enable biometric lock',
+          androidTitle:'Enable Fingerprint Unlock',
+          allowDeviceCredential: false,
+        });
+        localStorage.setItem(BIO_KEY, '1');
+        setBioEnabled(true);
+      } catch {
+        // User cancelled — don't enable
+      }
+    } else {
+      localStorage.removeItem(BIO_KEY);
+      setBioEnabled(false);
+      setLocked(false);
+    }
+  }, []);
+
+  return { bioAvailable, bioEnabled, locked, bioError, verifying, authenticate, toggleBio };
+}
+
+// ── LockScreen overlay ───────────────────────────────────────────
+function LockScreen({ onUnlock, error, verifying }: {
+  onUnlock: () => void; error: string; verifying: boolean;
+}) {
+  // Auto-trigger fingerprint dialog as soon as the lock screen appears
+  useEffect(() => { onUnlock(); }, []);
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:99999, display:'flex', flexDirection:'column',
+      alignItems:'center', justifyContent:'center',
+      background:'linear-gradient(160deg,#1a0510 0%,#2d0a1a 50%,#1a0510 100%)' }}>
+
+      {/* PG Logo */}
+      <svg width={72} height={72} viewBox="0 0 44 44" fill="none" style={{ marginBottom:24 }}>
+        <circle cx="22" cy="22" r="22" fill="#C8102E"/>
+        <circle cx="22" cy="22" r="19.5" fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth="1"/>
+        <text x="22" y="29" textAnchor="middle" fill="white"
+          fontFamily="'Arial Black','Arial Bold',Arial,sans-serif"
+          fontWeight="900" fontSize="17" letterSpacing="-0.8">PG</text>
+      </svg>
+
+      {/* Fingerprint icon */}
+      <div style={{ width:88, height:88, borderRadius:'50%', marginBottom:28,
+        background:'rgba(200,16,46,.18)', border:'2px solid rgba(200,16,46,.5)',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        animation: verifying ? 'gpPulse 1.2s ease-in-out infinite' : 'none' }}>
+        <span style={{ fontSize:44 }}>🔐</span>
+      </div>
+
+      <div style={{ fontSize:22, fontWeight:800, color:'#fff', marginBottom:8 }}>
+        {verifying ? 'Verifying…' : 'App Locked'}
+      </div>
+      <div style={{ fontSize:14, color:'rgba(255,255,255,.55)', marginBottom:32, textAlign:'center', maxWidth:260 }}>
+        {verifying ? 'Place your finger on the sensor' : 'Tap the button below to unlock with your fingerprint'}
+      </div>
+
+      {error ? (
+        <div style={{ marginBottom:20, padding:'10px 20px', borderRadius:10,
+          background:'rgba(239,68,68,.15)', border:'1px solid rgba(239,68,68,.4)',
+          color:'#FCA5A5', fontSize:13, textAlign:'center', maxWidth:280 }}>
+          {error}
+        </div>
+      ) : null}
+
+      <button onClick={onUnlock} disabled={verifying}
+        style={{ padding:'16px 40px', borderRadius:50, fontSize:16, fontWeight:700, cursor:'pointer',
+          background: verifying ? 'rgba(200,16,46,.4)' : 'linear-gradient(135deg,#C8102E,#8B0D1F)',
+          color:'#fff', border:'2px solid rgba(255,255,255,.2)',
+          boxShadow: verifying ? 'none' : '0 8px 32px rgba(200,16,46,.5)',
+          transition:'all .2s', minWidth:200, fontFamily:'inherit' }}>
+        {verifying ? '⏳ Checking…' : '👆 Unlock with Fingerprint'}
+      </button>
+
+      <div style={{ marginTop:20, fontSize:12, color:'rgba(255,255,255,.35)' }}>
+        Or use PIN/pattern as fallback
+      </div>
+    </div>
+  );
+}
+
+// ── BiometricToggle UI component (used in Profile settings) ──────
+export function BiometricToggle() {
+  const { bioAvailable, bioEnabled, toggleBio } = useBiometricCtx();
+  if (!IS_NATIVE || !bioAvailable) return null;   // hide on web or unsupported device
+
+  return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+      padding:'14px 16px', borderRadius:12, background:'var(--surface)',
+      border:'1px solid var(--border)', marginBottom:12 }}>
+      <div>
+        <div style={{ fontSize:14, fontWeight:600 }}>🔐 Fingerprint Unlock</div>
+        <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>
+          {bioEnabled ? 'App locks when backgrounded' : 'Enable to lock app with fingerprint'}
+        </div>
+      </div>
+      {/* Toggle switch */}
+      <button onClick={() => toggleBio(!bioEnabled)}
+        style={{ width:48, height:26, borderRadius:13, border:'none', cursor:'pointer',
+          background: bioEnabled ? '#C8102E' : 'var(--border)',
+          position:'relative', transition:'background .2s', flexShrink:0 }}>
+        <span style={{ position:'absolute', top:3,
+          left: bioEnabled ? 24 : 3,
+          width:20, height:20, borderRadius:'50%', background:'#fff',
+          transition:'left .2s', boxShadow:'0 1px 4px rgba(0,0,0,.3)',
+          display:'block' }} />
+      </button>
+    </div>
+  );
+}
+
+// Context so the toggle can be used anywhere without prop drilling
+const BiometricCtx = createContext<ReturnType<typeof useBiometric> | null>(null);
+const useBiometricCtx = () => useContext(BiometricCtx)!;
+
+// ═══════════════════════════════════════════════════════════════════
 //  GATEPASS MODULE — Employee Outpass System
 //  Uses the existing API axios instance → /api/v1/gatepass/*
 // ═══════════════════════════════════════════════════════════════════
@@ -2513,6 +2749,9 @@ export default function AdminApp() {
   }, []);
   const removeToast = (id: number) => setToasts(prev => prev.filter(t => t.id !== id));
 
+  // ── Biometric state ────────────────────────────────────────────
+  const bio = useBiometric();
+
   const login = (d: any) => {
     localStorage.setItem('accessToken',  d.accessToken);
     localStorage.setItem('refreshToken', d.refreshToken);
@@ -2520,7 +2759,11 @@ export default function AdminApp() {
     setUser(d.user);
   };
   const requestLogout = () => setShowLogoutDlg(true);
-  const logout        = () => { localStorage.clear(); setUser(null); setShowLogoutDlg(false); };
+  const logout        = () => {
+    localStorage.clear();          // also clears bio_enabled on logout
+    setUser(null);
+    setShowLogoutDlg(false);
+  };
   const toggleTheme = () => setTheme(t => {
     const next = t === 'light' ? 'dark' : 'light';
     localStorage.setItem('theme', next);
@@ -2530,6 +2773,7 @@ export default function AdminApp() {
   const isDark = theme === 'dark';
 
   return (
+    <BiometricCtx.Provider value={bio}>
     <ToastCtx.Provider value={addToast}>
     <AuthCtx.Provider value={{ user, login, logout }}>
       <div data-theme={isDark ? 'dark' : undefined}
@@ -2584,8 +2828,18 @@ export default function AdminApp() {
 
         {/* Global toast notifications */}
         <ToastContainer toasts={toasts} remove={removeToast} />
+
+        {/* Biometric lock screen — shown on launch & foreground if bio is enabled */}
+        {bio.locked && user && (
+          <LockScreen
+            onUnlock={bio.authenticate}
+            error={bio.bioError}
+            verifying={bio.verifying}
+          />
+        )}
       </div>
     </AuthCtx.Provider>
     </ToastCtx.Provider>
+    </BiometricCtx.Provider>
   );
 }
