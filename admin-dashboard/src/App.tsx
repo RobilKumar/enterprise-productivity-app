@@ -2406,10 +2406,9 @@ function GatepassPage() {
 
   // ── Socket.IO real-time connection ──────────────────────────────
   useEffect(() => {
-    const token  = localStorage.getItem('accessToken');
+    const token = localStorage.getItem('accessToken');
     if (!token) return;
-    const myId   = user?.id as string | undefined;   // current logged-in user
-    const base   = (import.meta.env.VITE_API_URL as string || '').replace('/api/v1', '');
+    const base  = (import.meta.env.VITE_API_URL as string || '').replace('/api/v1', '');
     const socket = socketIO(base, {
       auth: { token },
       transports: ['websocket', 'polling'],
@@ -2419,49 +2418,43 @@ function GatepassPage() {
     socket.on('connect',    () => console.log('[Gatepass] 🔌 Socket connected:', socket.id));
     socket.on('disconnect', () => console.log('[Gatepass] 🔌 Socket disconnected'));
 
-    // gatepass:new  — notify EVERYONE except the person who raised it
+    // gatepass:new — backend sends ONLY to the RM's personal room, so if you receive this you ARE the RM
     socket.on('gatepass:new', (data: any) => {
-      if (data.requesterId !== myId) {
-        const who = data.name || 'Someone';
-        addToast(`🚪 New outpass: ${who} → ${data.destination || ''}`, 'info');
-      }
+      addToast(`🚪 New outpass: ${data.name || 'Someone'} → ${data.destination || ''}`, 'info');
       setGpTick(t => t + 1);
     });
 
-    // gatepass:approved — notify ONLY the requester
+    // gatepass:approved — backend sends ONLY to the requester's personal room
     socket.on('gatepass:approved', (data: any) => {
-      if (data.requesterId === myId) {
-        addToast(`✅ Your gatepass ${data.passNumber || ''} has been approved!`, 'success');
-      }
+      addToast(`✅ Your gatepass ${data.passNumber || ''} has been approved!`, 'success');
       setGpTick(t => t + 1);
     });
 
-    // gatepass:rejected — notify ONLY the requester
+    // gatepass:rejected — backend sends ONLY to the requester's personal room
     socket.on('gatepass:rejected', (data: any) => {
-      if (data.requesterId === myId) {
-        addToast(`❌ Your gatepass ${data.passNumber || ''} was rejected`, 'error');
-      }
+      addToast(`❌ Your gatepass ${data.passNumber || ''} was rejected`, 'error');
       setGpTick(t => t + 1);
     });
 
-    // gatepass:exited — notify everyone EXCEPT the employee who exited (they already know)
+    // gatepass:exited — backend sends ONLY to 'mgmt' room (managers/admins), not the employee
     socket.on('gatepass:exited', (data: any) => {
-      if (data.requesterId !== myId) {
-        addToast(`🚶 ${data.name || 'An employee'} exited — ${data.passNumber || ''}`, 'info');
-      }
+      addToast(`🚶 ${data.name || 'An employee'} exited — ${data.passNumber || ''}`, 'info');
       setGpTick(t => t + 1);
     });
 
-    // gatepass:returned — notify everyone EXCEPT the employee who returned
+    // gatepass:returned — backend sends ONLY to 'mgmt' room
     socket.on('gatepass:returned', (data: any) => {
-      if (data.requesterId !== myId) {
-        addToast(`🏠 ${data.name || 'An employee'} returned — ${data.passNumber || ''}`, 'success');
-      }
+      addToast(`🏠 ${data.name || 'An employee'} returned — ${data.passNumber || ''}`, 'success');
+      setGpTick(t => t + 1);
+    });
+
+    // gatepass:refresh — silent event (no toast), just refresh data panels for everyone
+    socket.on('gatepass:refresh', () => {
       setGpTick(t => t + 1);
     });
 
     return () => { socket.disconnect(); };
-  }, []); // connect once per mount — user.id is captured via closure at mount time
+  }, []); // connect once per mount
 
   return (
     <div style={{ padding:24 }}>

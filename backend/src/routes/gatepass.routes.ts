@@ -112,7 +112,13 @@ router.post('/', async (req: AuthRequest, res, next) => {
     const requester = await prisma.user.findUnique({ where: { id: userId }, select: { firstName: true, lastName: true } });
     const fullName  = `${requester?.firstName} ${requester?.lastName}`;
 
-    // Notify RM via in-app notification + socket
+    const newPayload = {
+      id: request.id, passNumber, requesterId: userId,
+      name: fullName, isFullDay: body.isFullDay,
+      destination: body.destination,
+    };
+
+    // Notify ONLY the RM — nobody else gets the toast
     if (rm) {
       await NotificationService.send({
         userId: rm.id,
@@ -121,19 +127,10 @@ router.post('/', async (req: AuthRequest, res, next) => {
         body:   `${fullName} raised an outpass [${passNumber}]${body.isFullDay ? ' (Full Day)' : ''}. Please review.`,
         data:   { gatepassId: request.id },
       });
-      // Real-time socket event to the RM's personal room
-      emitGatepass('new', {
-        id: request.id, passNumber, requesterId: userId,
-        name: fullName, isFullDay: body.isFullDay,
-        destination: body.destination,
-      }, [`user:${rm.id}`]);
+      emitGatepass('new', newPayload, [`user:${rm.id}`]);
     }
-    // Also broadcast to all admins for awareness
-    emitGatepass('new', {
-      id: request.id, passNumber, requesterId: userId,
-      name: fullName, isFullDay: body.isFullDay,
-      destination: body.destination,
-    }, ['company']);
+    // Silent refresh for Gate Terminal / HR Dashboard panels (no toast)
+    emitGatepass('refresh', { type: 'new' }, ['company']);
 
     res.status(201).json({ success: true, data: request });
   } catch (err) { next(err); }
@@ -223,19 +220,15 @@ router.patch('/:id/approve', authorize(...LEADER_AND_UP), async (req: AuthReques
     };
 
     if (approved) {
-      const admins = await prisma.user.findMany({
-        where:  { role: { name: { in: ['ADMIN', 'SUPER_ADMIN', 'MANAGER'] } }, deletedAt: null },
-        select: { id: true },
+      await NotificationService.send({
+        userId: request.requesterId,
+        type:   'GATEPASS_APPROVED',
+        title:  '✅ Gatepass Approved',
+        body:   `Your outpass [${request.passNumber}] to ${request.destination} has been approved.`,
+        data:   { gatepassId: request.id },
       });
-      await NotificationService.broadcast(
-        admins.map(a => a.id),
-        'GATEPASS_APPROVED',
-        `🚪 Gatepass Approved — ${requesterName}`,
-        `[${request.passNumber}] approved. Destination: ${request.destination}.`,
-        { gatepassId: request.id },
-      );
-      // Socket: notify requester + admins
-      emitGatepass('approved', socketPayload, [`user:${request.requesterId}`, 'company']);
+      // Socket: notify ONLY the requester — their manager doesn't need a toast for their own action
+      emitGatepass('approved', socketPayload, [`user:${request.requesterId}`]);
     } else {
       await NotificationService.send({
         userId: request.requesterId,
@@ -244,9 +237,11 @@ router.patch('/:id/approve', authorize(...LEADER_AND_UP), async (req: AuthReques
         body:   `Your outpass [${request.passNumber}] has been rejected.${approvalRemarks ? ` Reason: ${approvalRemarks}` : ''}`,
         data:   { gatepassId: request.id },
       });
-      // Socket: notify requester
+      // Socket: notify ONLY the requester
       emitGatepass('rejected', { ...socketPayload, reason: approvalRemarks }, [`user:${request.requesterId}`]);
     }
+    // Silent refresh for Gate Terminal / HR Dashboard (no toast for anyone)
+    emitGatepass('refresh', { type: approved ? 'approved' : 'rejected' }, ['company']);
 
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
@@ -299,11 +294,13 @@ router.patch('/:id/exit', authorize(...MANAGEMENT_ROLES), async (req: AuthReques
       `[${request.passNumber}] ${empName} left at ${time}.`,
       { gatepassId: request.id },
     );
-    // Real-time socket to all connected clients
+    // Toast only for management (ADMIN/SUPER_ADMIN/MANAGER/TEAM_LEADER) — not the employee who exited
     emitGatepass('exited', {
       id: request.id, passNumber: request.passNumber,
       requesterId: request.requesterId, name: empName, time,
-    }, ['company']);
+    }, ['mgmt']);
+    // Silent refresh for everyone's panels
+    emitGatepass('refresh', { type: 'exited' }, ['company']);
 
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
@@ -336,11 +333,13 @@ router.patch('/:id/return', authorize(...MANAGEMENT_ROLES), async (req: AuthRequ
       `[${request.passNumber}] ${empName} returned at ${time}.`,
       { gatepassId: request.id },
     );
-    // Real-time socket
+    // Toast only for management — not the employee who returned
     emitGatepass('returned', {
       id: request.id, passNumber: request.passNumber,
       requesterId: request.requesterId, name: empName, time,
-    }, ['company']);
+    }, ['mgmt']);
+    // Silent refresh for everyone's panels
+    emitGatepass('refresh', { type: 'returned' }, ['company']);
 
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }

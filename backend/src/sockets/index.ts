@@ -36,6 +36,11 @@ export function initSocketHandlers(io: Server): void {
     if (dbUser?.departmentId) socket.join(`dept:${dbUser.departmentId}`);
     socket.join('company');
 
+    // Management room — for targeted events that only managers/admins should receive
+    if (['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'TEAM_LEADER'].includes(user.role)) {
+      socket.join('mgmt');
+    }
+
     // Mark online
     await prisma.user.update({ where: { id: user.userId }, data: { isOnline: true, lastActiveAt: new Date() } });
     await redis.setex(`online:${user.userId}`, 120, '1');
