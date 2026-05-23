@@ -1,0 +1,41 @@
+{
+  "name": "enterprise-productivity-admin",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:mobile": "tsc && vite build --mode mobile",
+    "preview": "vite preview",
+    "lint": "eslint src --ext .ts,.tsx",
+    "cap:sync": "npm run build:mobile && npx cap copy android",
+    "cap:android": "npm run build:mobile && npx cap copy android && npx cap open android",
+    "cap:run": "npx cap run android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
+    "@capacitor/keyboard": "^8.0.3",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
+    "axios": "^1.7.2",
+    "lucide-react": "^1.16.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.24.1",
+    "recharts": "^2.12.7",
+    "socket.io-client": "^4.7.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^7.14.1",
+    "@typescript-eslint/parser": "^7.14.1",
+    "@vitejs/plugin-react": "^4.3.1",
+    "eslint": "^8.57.0",
+    "typescript": "^5.5.3",
+    "vite": "^5.3.3"
+  }
+}

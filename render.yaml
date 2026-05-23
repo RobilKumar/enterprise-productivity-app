@@ -1,0 +1,68 @@
+services:
+  - type: web
+    name: ep-backend
+    runtime: node
+    region: singapore          # closest to South Asia; change to "ohio" for US
+    plan: free
+    branch: main
+    rootDir: backend
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: node dist/server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"         # Render assigns this automatically
+
+      # ── Fill these in Render dashboard → Environment ──────────
+      - key: DATABASE_URL
+        sync: false            # set manually in Render dashboard
+      - key: DIRECT_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false            # Upstash Redis URL
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: OTP_SECRET
+        generateValue: true
+
+      # ── CORS: allow Vercel dashboard + Capacitor mobile ───────
+      - key: FRONTEND_URL
+        sync: false            # set to: https://your-app.vercel.app,capacitor://localhost,https://localhost
+
+      # ── Defaults (override in dashboard if needed) ─────────────
+      - key: JWT_EXPIRES_IN
+        value: "15m"
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: "7d"
+      - key: OTP_EXPIRES_MINUTES
+        value: "10"
+      - key: RATE_LIMIT_MAX
+        value: "500"
+      - key: AUTH_RATE_LIMIT_MAX
+        value: "10"
+      - key: LOG_LEVEL
+        value: "warn"
+      - key: GAMIFICATION_ENABLED
+        value: "true"
+      - key: AI_PRODUCTIVITY_ENABLED
+        value: "true"
+      - key: POINTS_TASK_COMPLETE
+        value: "10"
+      - key: POINTS_ON_TIME_BONUS
+        value: "5"
+      - key: POINTS_EARLY_BONUS
+        value: "10"
+
+      # ── MinIO: disabled on free tier (no persistent storage) ──
+      - key: MINIO_ENDPOINT
+        value: ""
+      - key: MINIO_ACCESS_KEY
+        value: ""
+      - key: MINIO_SECRET_KEY
+        value: ""
+      - key: MINIO_BUCKET_TASKS
+        value: "task-attachments"

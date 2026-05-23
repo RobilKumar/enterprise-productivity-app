@@ -1,0 +1,33 @@
+# ─── scripts/monitoring/prometheus.yml ───────────────────────
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'enterprise-productivity'
+
+rule_files:
+  - 'alert_rules.yml'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+scrape_configs:
+  - job_name: 'productivity-backend'
+    static_configs:
+      - targets: ['backend:5000']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  - job_name: 'sqlserver'
+    static_configs:
+      - targets: ['sqlserver-exporter:4000']
