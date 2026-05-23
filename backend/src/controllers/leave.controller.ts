@@ -26,52 +26,44 @@ export async function applyLeave(req: AuthRequest, res: Response, next: NextFunc
     // Check overlapping leaves
     const overlap = await prisma.leaveRequest.findFirst({
       where: {
-        userId:    req.user!.userId,
-        status:    { notIn: ['REJECTED', 'CANCELLED'] },
+        userId: req.user!.userId,
+        status: { notIn: ['REJECTED', 'CANCELLED'] },
         OR: [
-          { startDate: { lte: end   }, endDate: { gte: start } },
+          { startDate: { lte: end }, endDate: { gte: start } },
         ],
       },
     });
     if (overlap) throw new AppError('Overlapping leave request exists', 409);
 
-    // Calculate working days
-    const workingDays = calculateWorkingDays(start, end);
-
-    // Check leave balance
-    const balance = await prisma.leaveBalance.findFirst({
-      where: { userId: req.user!.userId, leaveType: body.type, year: new Date().getFullYear() },
-    });
-    if (balance && balance.remaining < workingDays) {
-      throw new AppError(`Insufficient ${body.type} leave balance. Available: ${balance.remaining} days`, 400);
-    }
+    // Calculate total days (working days only)
+    const totalDays = calculateWorkingDays(start, end);
 
     const leave = await prisma.leaveRequest.create({
       data: {
-        userId:      req.user!.userId,
-        type:        body.type,
-        startDate:   start,
-        endDate:     end,
-        reason:      body.reason,
-        isHalfDay:   body.isHalfDay,
-        workingDays,
+        userId:    req.user!.userId,
+        type:      body.type,
+        startDate: start,
+        endDate:   end,
+        reason:    body.reason,
+        isHalfDay: body.isHalfDay,
+        totalDays,
       },
       include: { user: { select: { firstName: true, lastName: true, teamId: true } } },
     });
 
     // Notify manager/admin
     const managers = await prisma.user.findMany({
-      where: { role: { name: { in: ['ADMIN', 'MANAGER'] } }, deletedAt: null },
+      where:  { role: { name: { in: ['ADMIN', 'MANAGER'] } }, deletedAt: null },
       select: { id: true, fcmToken: true },
     });
 
     for (const mgr of managers) {
       await NotificationService.send({
-        userId: mgr.id,
-        type:   'LEAVE_REQUEST',
-        title:  'New Leave Request',
-        body:   `${leave.user.firstName} ${leave.user.lastName} applied for ${body.type} leave`,
-        data:   { leaveId: leave.id },
+        userId:   mgr.id,
+        type:     'LEAVE_REQUEST',
+        title:    'New Leave Request',
+        body:     `${leave.user.firstName} ${leave.user.lastName} applied for ${body.type} leave`,
+        data:     { leaveId: leave.id },
         fcmToken: mgr.fcmToken || undefined,
       });
     }
@@ -109,8 +101,8 @@ export async function getLeaves(req: AuthRequest, res: Response, next: NextFunct
         take:    limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          user:       { select: { id: true, firstName: true, lastName: true, employeeId: true, avatarUrl: true } },
-          approvedBy: { select: { id: true, firstName: true, lastName: true } },
+          user:     { select: { id: true, firstName: true, lastName: true, employeeId: true, avatarUrl: true } },
+          reviewer: { select: { id: true, firstName: true, lastName: true } },
         },
       }),
       prisma.leaveRequest.count({ where }),
@@ -150,20 +142,14 @@ export async function reviewLeave(req: AuthRequest, res: Response, next: NextFun
       where: { id },
       data: {
         status,
-        approvedById:    req.user!.userId,
-        approvedAt:      new Date(),
-        rejectionReason: status === 'REJECTED' ? rejectionReason : undefined,
+        reviewedById: req.user!.userId,
+        reviewedAt:   new Date(),
+        reviewNote:   rejectionReason,
       },
     });
 
-    // If approved, deduct from balance and mark attendance as leave
+    // If approved, mark attendance as leave for the period
     if (status === 'APPROVED') {
-      await prisma.leaveBalance.updateMany({
-        where: { userId: leave.userId, leaveType: leave.type, year: new Date().getFullYear() },
-        data:  { used: { increment: leave.workingDays }, remaining: { decrement: leave.workingDays } },
-      });
-
-      // Mark attendance as ON_LEAVE for the period
       const dates = getDatesBetween(leave.startDate, leave.endDate);
       for (const date of dates) {
         if (!isWeekend(date)) {
@@ -187,7 +173,13 @@ export async function reviewLeave(req: AuthRequest, res: Response, next: NextFun
       data: { leaveId: id },
     });
 
-    await createAuditLog({ userId: req.user!.userId, action: `LEAVE_${status}`, entity: 'LeaveRequest', entityId: id, req });
+    await createAuditLog({
+      userId:   req.user!.userId,
+      action:   `LEAVE_${status}`,
+      entity:   'LeaveRequest',
+      entityId: id,
+      req,
+    });
 
     return res.json({ success: true, data: updated });
   } catch (err) {
@@ -211,31 +203,56 @@ export async function cancelLeave(req: AuthRequest, res: Response, next: NextFun
 
     await prisma.leaveRequest.update({ where: { id }, data: { status: 'CANCELLED' } });
 
-    // Restore balance if was approved
-    if (leave.status === 'APPROVED') {
-      await prisma.leaveBalance.updateMany({
-        where: { userId: leave.userId, leaveType: leave.type, year: new Date().getFullYear() },
-        data:  { used: { decrement: leave.workingDays }, remaining: { increment: leave.workingDays } },
-      });
-    }
-
     return res.json({ success: true, message: 'Leave cancelled successfully' });
   } catch (err) {
     next(err);
   }
 }
 
-// ─── Get Leave Balance ───────────────────────────────────────────────────────
+// ─── Get Leave Balance (stub — no LeaveBalance model in schema) ───────────────
 export async function getLeaveBalance(req: AuthRequest, res: Response, next: NextFunction) {
   try {
+    // Compute a basic summary from actual leave requests instead
     const targetId = (req.user!.role === 'EMPLOYEE')
       ? req.user!.userId
       : (req.query.userId as string || req.user!.userId);
 
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const yearStart = new Date(`${year}-01-01`);
+    const yearEnd   = new Date(`${year}-12-31`);
 
-    const balances = await prisma.leaveBalance.findMany({
-      where: { userId: targetId, year },
+    // Group approved leaves by type
+    const used = await prisma.leaveRequest.groupBy({
+      by:    ['type'],
+      where: {
+        userId:    targetId,
+        status:    'APPROVED',
+        startDate: { gte: yearStart, lte: yearEnd },
+      },
+      _sum: { totalDays: true },
+      orderBy: { type: 'asc' },
+    });
+
+    // Default annual entitlements
+    const defaults: Record<string, number> = {
+      ANNUAL:    21,
+      SICK:      14,
+      MATERNITY: 90,
+      PATERNITY: 14,
+      UNPAID:    30,
+      EMERGENCY: 5,
+      OTHER:     5,
+    };
+
+    const balances = Object.entries(defaults).map(([leaveType, entitled]) => {
+      const usedDays = used.find(u => u.type === leaveType)?._sum.totalDays || 0;
+      return {
+        leaveType,
+        year,
+        entitled,
+        used:      usedDays,
+        remaining: Math.max(0, entitled - usedDays),
+      };
     });
 
     return res.json({ success: true, data: balances });

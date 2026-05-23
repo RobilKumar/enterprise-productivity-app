@@ -104,14 +104,16 @@ export async function getUserKPI(req: AuthRequest, res: Response, next: NextFunc
         orderBy: { date: 'asc' },
       }),
       prisma.task.groupBy({
-        by:    ['status'],
-        where: { assigneeId: targetId, deletedAt: null, createdAt: { gte: start, lte: end } },
+        by:     ['status'],
+        where:  { assigneeId: targetId, deletedAt: null, createdAt: { gte: start, lte: end } },
         _count: { _all: true },
+        orderBy: { status: 'asc' },
       }),
       prisma.attendance.groupBy({
-        by:    ['status'],
-        where: { userId: targetId, date: { gte: start, lte: end } },
+        by:     ['status'],
+        where:  { userId: targetId, date: { gte: start, lte: end } },
         _count: { _all: true },
+        orderBy: { status: 'asc' },
       }),
       prisma.workTimeLog.aggregate({
         where:  { userId: targetId, startTime: { gte: start, lte: end }, isIdle: false },
@@ -167,15 +169,17 @@ export async function getTeamKPI(req: AuthRequest, res: Response, next: NextFunc
 
     const [taskStats, memberMetrics] = await prisma.$transaction([
       prisma.task.groupBy({
-        by:    ['status', 'priority'],
-        where: { teamId, deletedAt: null, createdAt: { gte: start, lte: end } },
+        by:     ['status', 'priority'],
+        where:  { teamId, deletedAt: null, createdAt: { gte: start, lte: end } },
         _count: { _all: true },
+        orderBy: { status: 'asc' },
       }),
       prisma.productivityMetric.groupBy({
-        by:    ['userId'],
-        where: { userId: { in: memberIds }, date: { gte: start, lte: end } },
-        _avg:  { productivityScore: true, totalWorkHours: true, onTimeDeliveryRate: true },
-        _sum:  { tasksCompleted: true },
+        by:     ['userId'],
+        where:  { userId: { in: memberIds }, date: { gte: start, lte: end } },
+        _avg:   { productivityScore: true, totalWorkHours: true, onTimeDeliveryRate: true },
+        _sum:   { tasksCompleted: true },
+        orderBy: { userId: 'asc' },
       }),
     ]);
 
@@ -212,9 +216,10 @@ export async function getCompanyKPI(req: AuthRequest, res: Response, next: NextF
       productivityTrend, workloadByPriority,
     ] = await prisma.$transaction([
       prisma.task.groupBy({
-        by:    ['status'],
-        where: { deletedAt: null, createdAt: { gte: start, lte: end } },
+        by:     ['status'],
+        where:  { deletedAt: null, createdAt: { gte: start, lte: end } },
         _count: { _all: true },
+        orderBy: { status: 'asc' },
       }),
       prisma.department.findMany({
         where:   { isActive: true },
@@ -249,9 +254,10 @@ export async function getCompanyKPI(req: AuthRequest, res: Response, next: NextF
         orderBy: { date: 'asc' },
       }),
       prisma.task.groupBy({
-        by:    ['priority'],
-        where: { deletedAt: null, status: { in: ['PENDING', 'IN_PROGRESS', 'ON_HOLD'] } },
+        by:     ['priority'],
+        where:  { deletedAt: null, status: { in: ['PENDING', 'IN_PROGRESS', 'ON_HOLD'] } },
         _count: { _all: true },
+        orderBy: { priority: 'asc' },
       }),
     ]);
 

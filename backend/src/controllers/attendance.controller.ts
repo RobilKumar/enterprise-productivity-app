@@ -17,9 +17,9 @@ const AttendanceQuerySchema = z.object({
 // ─── Check In ───────────────────────────────────────────────────────────────
 export async function checkIn(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const { notes, latitude, longitude } = z.object({
+    const { notes } = z.object({
       notes:     z.string().optional(),
-      latitude:  z.number().optional(),
+      latitude:  z.number().optional(),   // accepted but not stored (not in schema)
       longitude: z.number().optional(),
     }).parse(req.body);
 
@@ -30,7 +30,7 @@ export async function checkIn(req: AuthRequest, res: Response, next: NextFunctio
       where: { userId: req.user!.userId, date: today },
     });
 
-    if (existing?.checkIn) {
+    if (existing?.checkInTime) {
       throw new AppError('Already checked in today', 400);
     }
 
@@ -39,16 +39,15 @@ export async function checkIn(req: AuthRequest, res: Response, next: NextFunctio
     const isLate = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() > 30);
 
     const attendance = await prisma.attendance.upsert({
-      where: { userId_date: { userId: req.user!.userId, date: today } },
-      update: { checkIn: now, status: isLate ? 'LATE' : 'PRESENT', notes },
+      where:  { userId_date: { userId: req.user!.userId, date: today } },
+      update: { checkInTime: now, status: isLate ? 'LATE' : 'PRESENT', isLate, notes },
       create: {
-        userId:    req.user!.userId,
-        date:      today,
-        checkIn:   now,
-        status:    isLate ? 'LATE' : 'PRESENT',
+        userId:      req.user!.userId,
+        date:        today,
+        checkInTime: now,
+        status:      isLate ? 'LATE' : 'PRESENT',
+        isLate,
         notes,
-        latitude,
-        longitude,
       },
     });
 
@@ -68,22 +67,24 @@ export async function checkOut(req: AuthRequest, res: Response, next: NextFuncti
       where: { userId: req.user!.userId, date: today },
     });
 
-    if (!attendance?.checkIn) throw new AppError('Not checked in today', 400);
-    if (attendance.checkOut) throw new AppError('Already checked out', 400);
+    if (!attendance?.checkInTime) throw new AppError('Not checked in today', 400);
+    if (attendance.checkOutTime)  throw new AppError('Already checked out', 400);
 
     const now = new Date();
-    const workMinutes = Math.round((now.getTime() - attendance.checkIn.getTime()) / 60000);
+    const totalWorkHours = Math.round(
+      ((now.getTime() - attendance.checkInTime.getTime()) / 3600000) * 10
+    ) / 10;
 
     const updated = await prisma.attendance.update({
       where: { id: attendance.id },
       data: {
-        checkOut:    now,
-        workMinutes,
-        status: workMinutes < 240 ? 'HALF_DAY' : attendance.status,
+        checkOutTime:  now,
+        totalWorkHours,
+        status: totalWorkHours < 4 ? 'HALF_DAY' : attendance.status,
       },
     });
 
-    return res.json({ success: true, data: updated, workHours: Math.round(workMinutes / 60 * 10) / 10 });
+    return res.json({ success: true, data: updated, workHours: totalWorkHours });
   } catch (err) {
     next(err);
   }
@@ -161,9 +162,10 @@ export async function getAttendanceStats(req: AuthRequest, res: Response, next: 
     const end   = endDate   ? new Date(endDate)   : new Date();
 
     const stats = await prisma.attendance.groupBy({
-      by:    ['status'],
-      where: { userId: targetId, date: { gte: start, lte: end } },
+      by:     ['status'],
+      where:  { userId: targetId, date: { gte: start, lte: end } },
       _count: { _all: true },
+      orderBy: { status: 'asc' },
     });
 
     const totalDays     = stats.reduce((s, r) => s + r._count._all, 0);
@@ -174,8 +176,8 @@ export async function getAttendanceStats(req: AuthRequest, res: Response, next: 
 
     const workHoursAgg = await prisma.attendance.aggregate({
       where: { userId: targetId, date: { gte: start, lte: end } },
-      _avg:  { workMinutes: true },
-      _sum:  { workMinutes: true },
+      _avg:  { totalWorkHours: true },
+      _sum:  { totalWorkHours: true },
     });
 
     return res.json({
@@ -183,8 +185,8 @@ export async function getAttendanceStats(req: AuthRequest, res: Response, next: 
       data: {
         totalDays, presentDays, lateDays, absentDays, leaveDays,
         attendanceRate: totalDays > 0 ? Math.round(((presentDays + lateDays) / totalDays) * 100) : 0,
-        avgWorkHours:   Math.round(((workHoursAgg._avg.workMinutes || 0) / 60) * 10) / 10,
-        totalWorkHours: Math.round(((workHoursAgg._sum.workMinutes || 0) / 60) * 10) / 10,
+        avgWorkHours:   Math.round((workHoursAgg._avg.totalWorkHours || 0) * 10) / 10,
+        totalWorkHours: Math.round((workHoursAgg._sum.totalWorkHours || 0) * 10) / 10,
         breakdown:      stats,
       },
     });
@@ -213,12 +215,35 @@ export async function overrideAttendance(req: AuthRequest, res: Response, next: 
     dateObj.setHours(0, 0, 0, 0);
 
     const record = await prisma.attendance.upsert({
-      where: { userId_date: { userId, date: dateObj } },
-      update: { status, checkIn: checkIn ? new Date(checkIn) : undefined, checkOut: checkOut ? new Date(checkOut) : undefined, notes, isOverride: true },
-      create: { userId, date: dateObj, status, checkIn: checkIn ? new Date(checkIn) : undefined, checkOut: checkOut ? new Date(checkOut) : undefined, notes, isOverride: true },
+      where:  { userId_date: { userId, date: dateObj } },
+      update: {
+        status,
+        checkInTime:  checkIn  ? new Date(checkIn)  : undefined,
+        checkOutTime: checkOut ? new Date(checkOut) : undefined,
+        notes,
+        isCorrected:  true,
+        correctedById: req.user!.userId,
+      },
+      create: {
+        userId,
+        date:         dateObj,
+        status,
+        checkInTime:  checkIn  ? new Date(checkIn)  : undefined,
+        checkOutTime: checkOut ? new Date(checkOut) : undefined,
+        notes,
+        isCorrected:  true,
+        correctedById: req.user!.userId,
+      },
     });
 
-    await createAuditLog({ userId: req.user!.userId, action: 'OVERRIDE_ATTENDANCE', entity: 'Attendance', entityId: record.id, newData: { userId, date, status }, req });
+    await createAuditLog({
+      userId:   req.user!.userId,
+      action:   'OVERRIDE_ATTENDANCE',
+      entity:   'Attendance',
+      entityId: record.id,
+      newData:  { userId, date, status },
+      req,
+    });
 
     return res.json({ success: true, data: record });
   } catch (err) {
