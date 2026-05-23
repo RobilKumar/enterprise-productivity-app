@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext, useEffect } from 'react';
+import React, { useState, createContext, useContext, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { API } from './lib/api';
 export { API } from './lib/api'; // re-export so existing consumers still work
@@ -332,6 +332,7 @@ const ALL_NAV = [
   { to:'/announcements', label:'Announcements',    icon:'📢', roles:['SUPER_ADMIN','ADMIN','MANAGER','TEAM_LEADER'] },
   { to:'/leaderboard',   label:'Leaderboard',      icon:'🏆', roles:[] },
   { to:'/audit',         label:'Audit Logs',       icon:'🔍', roles:['SUPER_ADMIN','ADMIN'] },
+  { to:'/gatepass',     label:'Gatepass',         icon:'🚪', roles:[] },
 ];
 
 // ─── Nav sections for Jira-style grouping ─────────────────────
@@ -344,6 +345,7 @@ const NAV_SECTIONS = [
       { to:'/tasks',      label:'Task Management', icon:'📋', roles:['SUPER_ADMIN','ADMIN','MANAGER','TEAM_LEADER'] },
       { to:'/attendance', label:'Attendance',      icon:'📅', roles:[] },
       { to:'/leaves',     label:'Leave',           icon:'🌴', roles:[] },
+      { to:'/gatepass',   label:'Gatepass',        icon:'🚪', roles:[] },
     ],
   },
   {
@@ -448,6 +450,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/announcements': 'Announcements',
   '/leaderboard':   'Leaderboard',
   '/audit':         'Audit Logs',
+  '/gatepass':      'Gatepass',
 };
 
 // ─── Mobile Top Bar ───────────────────────────────────────────
@@ -1647,6 +1650,569 @@ function RightsMasterPage() {
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  GATEPASS MODULE — Employee Outpass System
+//  Uses the existing API axios instance → /api/v1/gatepass/*
+// ═══════════════════════════════════════════════════════════════════
+
+const GP_STATUS: Record<string, { color: string; bg: string; label: string }> = {
+  PENDING:   { color: '#92400E', bg: '#FEF3C7', label: 'Pending'   },
+  APPROVED:  { color: '#065F46', bg: '#D1FAE5', label: 'Approved'  },
+  REJECTED:  { color: '#991B1B', bg: '#FEE2E2', label: 'Rejected'  },
+  CANCELLED: { color: '#374151', bg: '#F3F4F6', label: 'Cancelled' },
+  EXITED:    { color: '#1E40AF', bg: '#DBEAFE', label: 'Exited'    },
+  RETURNED:  { color: '#4C1D95', bg: '#EDE9FE', label: 'Returned'  },
+};
+const GP_TYPE: Record<string, { color: string; icon: string }> = {
+  OFFICIAL:  { color: '#3B82F6', icon: '💼' },
+  PERSONAL:  { color: '#8B5CF6', icon: '🏠' },
+  MEDICAL:   { color: '#10B981', icon: '🏥' },
+  EMERGENCY: { color: '#EF4444', icon: '🚨' },
+};
+
+const gpCardSt: React.CSSProperties = {
+  background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 20,
+};
+const gpBtnPri: React.CSSProperties = {
+  padding: '9px 18px', borderRadius: 9, background: 'var(--primary)', color: '#fff',
+  border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit',
+};
+const gpBtnSec: React.CSSProperties = {
+  padding: '9px 18px', borderRadius: 9, background: 'transparent', color: 'var(--text)',
+  border: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
+};
+const gpBtnGreen: React.CSSProperties = {
+  padding: '7px 14px', borderRadius: 8, background: '#D1FAE5', color: '#065F46',
+  border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+};
+const gpBtnRed: React.CSSProperties = {
+  padding: '7px 14px', borderRadius: 8, background: '#FEE2E2', color: '#991B1B',
+  border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+};
+
+function GpStatusBadge({ status }: { status: string }) {
+  const s = GP_STATUS[status] || { color: '#374151', bg: '#F3F4F6', label: status };
+  return <span style={{ padding:'3px 9px', borderRadius:8, fontSize:11, fontWeight:700, color:s.color, background:s.bg }}>{s.label}</span>;
+}
+function GpTypeBadge({ type }: { type: string }) {
+  const t = GP_TYPE[type] || { color: '#6B7280', icon: '📄' };
+  return <span style={{ padding:'3px 9px', borderRadius:8, fontSize:11, fontWeight:700, color:t.color, background:`${t.color}18` }}>{t.icon} {type}</span>;
+}
+function fmtDt(dt?: string | null) {
+  if (!dt) return '—';
+  return new Date(dt).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+}
+
+// ─── My Requests Tab ──────────────────────────────────────────────
+function GpMyTab() {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [showAdd,  setShowAdd]  = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [err,      setErr]      = useState('');
+  const EMPTY = { outpassType: 'OFFICIAL', destination: '', purpose: '', expectedReturnTime: '', remarks: '' };
+  const [form, setForm] = useState(EMPTY);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    API.get('/gatepass/my')
+      .then(r => { setRequests(r.data?.data || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const submit = async () => {
+    if (!form.destination.trim() || !form.purpose.trim() || !form.expectedReturnTime) {
+      setErr('Please fill all required fields.'); return;
+    }
+    setSaving(true); setErr('');
+    try {
+      await API.post('/gatepass', {
+        ...form, expectedReturnTime: new Date(form.expectedReturnTime).toISOString(),
+      });
+      setShowAdd(false); setForm(EMPTY); load();
+    } catch (e: any) { setErr(e.response?.data?.message || e.message || 'Failed to submit'); }
+    setSaving(false);
+  };
+
+  const cancel = async (id: string) => {
+    if (!window.confirm('Cancel this request?')) return;
+    try { await API.patch(`/gatepass/${id}/cancel`); load(); }
+    catch (e: any) { alert(e.response?.data?.message || e.message || 'Cannot cancel'); }
+  };
+
+  const f = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
+
+  return (
+    <div>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+        <span style={{ fontSize:13, color:'var(--muted)' }}>{requests.length} total requests</span>
+        <button onClick={() => { setForm(EMPTY); setErr(''); setShowAdd(true); }} style={gpBtnPri}>+ Raise Request</button>
+      </div>
+
+      {loading ? <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loading…</div>
+      : requests.length === 0 ? (
+        <div style={{ textAlign:'center', padding:60 }}>
+          <div style={{ fontSize:48, marginBottom:12 }}>🚪</div>
+          <div style={{ fontSize:16, fontWeight:600 }}>No outpass requests yet</div>
+          <div style={{ fontSize:13, color:'var(--muted)', marginTop:4 }}>Click "Raise Request" to create your first request</div>
+        </div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          {requests.map((r: any) => (
+            <div key={r.id} style={gpCardSt}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:10 }}>
+                <div>
+                  <div style={{ fontFamily:'monospace', fontSize:11, color:'var(--muted)', marginBottom:4 }}>{r.passNumber}</div>
+                  <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                    <GpStatusBadge status={r.status} />
+                    <GpTypeBadge   type={r.outpassType} />
+                  </div>
+                </div>
+                {r.status === 'PENDING' && <button onClick={() => cancel(r.id)} style={gpBtnRed}>✕ Cancel</button>}
+              </div>
+              <div style={{ fontSize:14, fontWeight:600, marginBottom:4 }}>📍 {r.destination}</div>
+              <div style={{ fontSize:13, color:'var(--muted)', marginBottom:8, lineHeight:1.5 }}>{r.purpose}</div>
+              <div style={{ display:'flex', gap:14, fontSize:12, color:'var(--muted)', flexWrap:'wrap' }}>
+                <span>⏰ Expected: {fmtDt(r.expectedReturnTime)}</span>
+                {r.approvedBy && <span>✅ By: {r.approvedBy.firstName} {r.approvedBy.lastName}</span>}
+                {r.actualExitTime   && <span>🚶 Exited: {fmtDt(r.actualExitTime)}</span>}
+                {r.actualReturnTime && <span>🏠 Returned: {fmtDt(r.actualReturnTime)}</span>}
+                <span style={{ marginLeft:'auto' }}>🕐 {fmtDt(r.createdAt)}</span>
+              </div>
+              {r.approvalRemarks && (
+                <div style={{ marginTop:8, fontSize:12, padding:'6px 10px', borderRadius:8,
+                  background: r.status==='REJECTED' ? '#FEF2F2' : 'var(--bg)',
+                  color: r.status==='REJECTED' ? '#991B1B' : 'var(--muted)' }}>
+                  💬 {r.approvalRemarks}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Raise Request Modal */}
+      {showAdd && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:300, padding:16 }}
+          onClick={e => e.target===e.currentTarget && setShowAdd(false)}>
+          <div style={{ width:'100%', maxWidth:480, background:'var(--surface)', borderRadius:16, padding:'24px 20px', maxHeight:'90vh', overflowY:'auto', boxShadow:'0 20px 60px rgba(0,0,0,.3)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+              <h2 style={{ fontSize:18, fontWeight:700, margin:0 }}>🚪 Raise Outpass Request</h2>
+              <button onClick={() => setShowAdd(false)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color:'var(--muted)' }}>×</button>
+            </div>
+
+            {err && <div style={{ background:'#FEF2F2', color:'#991B1B', padding:'8px 12px', borderRadius:8, fontSize:13, marginBottom:14 }}>{err}</div>}
+
+            <label style={labelStyle}>Outpass Type *</label>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:4 }}>
+              {(['OFFICIAL','PERSONAL','MEDICAL','EMERGENCY'] as const).map(type => (
+                <button key={type} type="button" onClick={() => f('outpassType', type)}
+                  style={{ padding:'8px 14px', borderRadius:9, cursor:'pointer', fontSize:12, fontWeight:600, fontFamily:'inherit',
+                    border: form.outpassType===type ? '2px solid var(--primary)' : '1px solid var(--border)',
+                    background: form.outpassType===type ? 'var(--primary-bg)' : 'var(--bg)',
+                    color: form.outpassType===type ? 'var(--primary)' : 'var(--text)' }}>
+                  {GP_TYPE[type]?.icon} {type}
+                </button>
+              ))}
+            </div>
+
+            <label style={labelStyle}>Destination *</label>
+            <input style={inputStyle} value={form.destination} onChange={e => f('destination', e.target.value)} placeholder="e.g. Client office, Hospital, Government office" />
+
+            <label style={labelStyle}>Purpose / Reason *</label>
+            <textarea style={{ ...inputStyle, minHeight:72, resize:'vertical' as const }} value={form.purpose} onChange={e => f('purpose', e.target.value)} placeholder="Briefly describe why you need to go out..." />
+
+            <label style={labelStyle}>Expected Return Time *</label>
+            <input type="datetime-local" style={inputStyle} value={form.expectedReturnTime} onChange={e => f('expectedReturnTime', e.target.value)} min={new Date().toISOString().slice(0,16)} />
+
+            <label style={labelStyle}>Additional Remarks (optional)</label>
+            <input style={inputStyle} value={form.remarks} onChange={e => f('remarks', e.target.value)} placeholder="Any extra notes for your manager…" />
+
+            <div style={{ display:'flex', gap:10, marginTop:20 }}>
+              <button onClick={() => setShowAdd(false)} style={{ ...gpBtnSec, flex:1 }}>Cancel</button>
+              <button onClick={submit} disabled={saving} style={{ ...gpBtnPri, flex:1, opacity:saving?.7:1 }}>
+                {saving ? 'Submitting…' : 'Submit Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Approvals Tab ─────────────────────────────────────────────────
+function GpApprovalsTab() {
+  const [requests,   setRequests]   = useState<any[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [processing, setProcessing] = useState<string|null>(null);
+  const [rejectItem, setRejectItem] = useState<any>(null);
+  const [remarks,    setRemarks]    = useState('');
+
+  const load = useCallback(() => {
+    setLoading(true);
+    API.get('/gatepass/pending')
+      .then(r => { setRequests(r.data?.data || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const decide = async (requestId: string, approved: boolean, note = '') => {
+    setProcessing(requestId);
+    try {
+      await API.patch(`/gatepass/${requestId}/approve`, { approved, approvalRemarks: note || undefined });
+      setRejectItem(null); setRemarks(''); load();
+    } catch (e: any) { alert(e.response?.data?.message || e.message || 'Failed'); }
+    setProcessing(null);
+  };
+
+  return (
+    <div>
+      {requests.length > 0 && (
+        <div style={{ marginBottom:16 }}>
+          <span style={{ padding:'4px 12px', borderRadius:20, background:'#FEF3C7', color:'#92400E', fontWeight:700, fontSize:13 }}>
+            {requests.length} pending approval{requests.length > 1 ? 's' : ''}
+          </span>
+        </div>
+      )}
+
+      {loading ? <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loading…</div>
+      : requests.length === 0 ? (
+        <div style={{ textAlign:'center', padding:60 }}>
+          <div style={{ fontSize:48, marginBottom:12 }}>🎉</div>
+          <div style={{ fontSize:16, fontWeight:600 }}>All caught up!</div>
+          <div style={{ fontSize:13, color:'var(--muted)', marginTop:4 }}>No pending approvals from your team.</div>
+        </div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          {requests.map((r: any) => {
+            const req  = r.requester || {};
+            const name = `${req.firstName||''} ${req.lastName||''}`.trim();
+            const dept = req.department?.name || '—';
+            const role = req.role?.displayName || req.role?.name || '—';
+            return (
+            <div key={r.id} style={{ ...gpCardSt, border:'1px solid #FCD34D' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:12 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:6 }}>
+                    <span style={{ fontFamily:'monospace', fontSize:11, color:'var(--muted)' }}>{r.passNumber}</span>
+                    <GpTypeBadge type={r.outpassType} />
+                  </div>
+                  <div style={{ fontWeight:700, fontSize:15 }}>{name}</div>
+                  <div style={{ fontSize:12, color:'var(--muted)' }}>{req.employeeId} · {dept} · {role}</div>
+                </div>
+                <div style={{ fontSize:11, color:'var(--muted)', textAlign:'right', flexShrink:0 }}>{fmtDt(r.createdAt)}</div>
+              </div>
+
+              <div style={{ padding:'10px 12px', background:'var(--bg)', borderRadius:10, marginBottom:12 }}>
+                <div style={{ fontSize:13, fontWeight:600, marginBottom:4 }}>📍 {r.destination}</div>
+                <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.5 }}>{r.purpose}</div>
+              </div>
+
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
+                <span style={{ fontSize:12, color:'var(--muted)' }}>⏰ Expected back: <strong>{fmtDt(r.expectedReturnTime)}</strong></span>
+                <div style={{ display:'flex', gap:8 }}>
+                  <button onClick={() => { setRejectItem(r); setRemarks(''); }} style={gpBtnRed}>✕ Reject</button>
+                  <button onClick={() => decide(r.id, true)} disabled={processing===r.id}
+                    style={{ ...gpBtnGreen, padding:'9px 16px', fontSize:13, opacity:processing===r.id?.6:1 }}>
+                    {processing===r.id ? '…' : '✓ Approve'}
+                  </button>
+                </div>
+              </div>
+            </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {rejectItem && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:300, padding:16 }}
+          onClick={e => e.target===e.currentTarget && setRejectItem(null)}>
+          <div style={{ width:'100%', maxWidth:400, background:'var(--surface)', borderRadius:16, padding:24, boxShadow:'0 20px 60px rgba(0,0,0,.3)' }}>
+            <h3 style={{ fontSize:17, fontWeight:700, marginBottom:8 }}>Reject Request</h3>
+            <p style={{ fontSize:13, color:'var(--muted)', marginBottom:16 }}>
+              Rejecting <strong>{rejectItem.passNumber}</strong> for {`${rejectItem.requester?.firstName||''} ${rejectItem.requester?.lastName||''}`.trim()}
+            </p>
+            <label style={labelStyle}>Reason for rejection *</label>
+            <textarea style={{ ...inputStyle, minHeight:80, resize:'vertical' as const }} value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Explain why this request is being rejected…" />
+            <div style={{ display:'flex', gap:10, marginTop:16 }}>
+              <button onClick={() => setRejectItem(null)} style={{ ...gpBtnSec, flex:1 }}>Cancel</button>
+              <button onClick={() => decide(rejectItem.id, false, remarks)} disabled={!remarks.trim() || processing===rejectItem.id}
+                style={{ flex:1, padding:'10px 18px', borderRadius:9, background:'#EF4444', color:'#fff', border:'none', cursor:'pointer', fontWeight:700, fontFamily:'inherit', opacity:(!remarks.trim()||processing===rejectItem.id)?.6:1 }}>
+                {processing===rejectItem.id ? 'Rejecting…' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Gate Terminal Tab ─────────────────────────────────────────────
+function GpGateTab() {
+  const [passes,     setPasses]     = useState<any[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [processing, setProcessing] = useState<string|null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    API.get('/gatepass/security')
+      .then(r => { setPasses(r.data?.data || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const markExit = async (id: string) => {
+    setProcessing(id);
+    try { await API.patch(`/gatepass/${id}/exit`); load(); }
+    catch (e: any) { alert(e.response?.data?.message || e.message || 'Failed'); }
+    setProcessing(null);
+  };
+  const markReturn = async (id: string) => {
+    setProcessing(id);
+    try { await API.patch(`/gatepass/${id}/return`); load(); }
+    catch (e: any) { alert(e.response?.data?.message || e.message || 'Failed'); }
+    setProcessing(null);
+  };
+
+  const readyToExit  = passes.filter(p => p.status === 'APPROVED');
+  const currentlyOut = passes.filter(p => p.status === 'EXITED');
+
+  return (
+    <div>
+      {/* Stats + Refresh */}
+      <div style={{ display:'flex', gap:12, marginBottom:20, flexWrap:'wrap', alignItems:'flex-start' }}>
+        {[{ label:'Ready to Exit', count:readyToExit.length,  color:'#10B981' },
+          { label:'Currently Out', count:currentlyOut.length, color:'#3B82F6' }].map(s => (
+          <div key={s.label} style={{ padding:'12px 20px', background:'var(--surface)', border:`1px solid ${s.color}30`, borderRadius:12 }}>
+            <div style={{ fontSize:24, fontWeight:800, color:s.color }}>{s.count}</div>
+            <div style={{ fontSize:12, color:'var(--muted)' }}>{s.label}</div>
+          </div>
+        ))}
+        <button onClick={load} style={{ ...gpBtnSec, marginLeft:'auto' }}>↻ Refresh</button>
+      </div>
+
+      {loading ? <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loading…</div>
+      : passes.length === 0 ? (
+        <div style={{ textAlign:'center', padding:60 }}>
+          <div style={{ fontSize:48, marginBottom:12 }}>🚪</div>
+          <div style={{ fontSize:16, fontWeight:600 }}>No active passes right now</div>
+          <div style={{ fontSize:13, color:'var(--muted)', marginTop:4 }}>Approved passes will appear here.</div>
+        </div>
+      ) : (
+        <div>
+          {/* Ready to Exit */}
+          {readyToExit.length > 0 && (
+            <div style={{ marginBottom:24 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'#065F46', marginBottom:10, display:'flex', alignItems:'center', gap:6 }}>
+                🟢 Ready to Exit ({readyToExit.length})
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {readyToExit.map((p: any) => {
+                  const req = p.requester || {};
+                  const name = `${req.firstName||''} ${req.lastName||''}`.trim();
+                  return (
+                  <div key={p.id} style={{ ...gpCardSt, border:'1px solid #A7F3D0', background:'#F0FDF4' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                      <div style={{ flex:1, minWidth:180 }}>
+                        <div style={{ fontFamily:'monospace', fontSize:11, color:'var(--muted)', marginBottom:2 }}>{p.passNumber}</div>
+                        <div style={{ fontWeight:700, fontSize:15 }}>{name}</div>
+                        <div style={{ fontSize:12, color:'var(--muted)' }}>{req.employeeId} · {req.department?.name}</div>
+                        <div style={{ display:'flex', gap:8, marginTop:4, flexWrap:'wrap', alignItems:'center' }}>
+                          <GpTypeBadge type={p.outpassType} />
+                          <span style={{ fontSize:12, color:'var(--muted)' }}>→ {p.destination}</span>
+                        </div>
+                        <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>⏰ Expected: {fmtDt(p.expectedReturnTime)}</div>
+                      </div>
+                      <button onClick={() => markExit(p.id)} disabled={processing===p.id}
+                        style={{ ...gpBtnPri, padding:'11px 18px', opacity:processing===p.id?.6:1, flexShrink:0 }}>
+                        {processing===p.id ? '…' : '🚶 Mark Exit'}
+                      </button>
+                    </div>
+                  </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Currently Outside */}
+          {currentlyOut.length > 0 && (
+            <div>
+              <div style={{ fontSize:13, fontWeight:700, color:'#1E40AF', marginBottom:10 }}>
+                🔵 Currently Outside ({currentlyOut.length})
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {currentlyOut.map((p: any) => {
+                  const overdue = new Date(p.expectedReturnTime) < new Date();
+                  const req = p.requester || {};
+                  const name = `${req.firstName||''} ${req.lastName||''}`.trim();
+                  return (
+                    <div key={p.id} style={{ ...gpCardSt, border:`1px solid ${overdue ? '#FCA5A5' : '#BFDBFE'}`, background: overdue ? '#FFF5F5' : '#EFF6FF' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                        <div style={{ flex:1, minWidth:180 }}>
+                          <div style={{ fontFamily:'monospace', fontSize:11, color:'var(--muted)', marginBottom:2 }}>{p.passNumber}</div>
+                          <div style={{ fontWeight:700, fontSize:15 }}>{name}</div>
+                          <div style={{ fontSize:12, color:'var(--muted)' }}>{req.employeeId} · {req.department?.name}</div>
+                          <div style={{ display:'flex', gap:12, marginTop:4, fontSize:12, flexWrap:'wrap' }}>
+                            <span>🚶 Exit: {fmtDt(p.actualExitTime)}</span>
+                            <span style={{ color: overdue ? '#EF4444' : 'var(--muted)', fontWeight: overdue ? 700 : 400 }}>
+                              {overdue ? '⚠️ OVERDUE — ' : '⏰ '}Expected: {fmtDt(p.expectedReturnTime)}
+                            </span>
+                          </div>
+                        </div>
+                        <button onClick={() => markReturn(p.id)} disabled={processing===p.id}
+                          style={{ ...gpBtnGreen, padding:'11px 16px', fontSize:13, opacity:processing===p.id?.6:1, flexShrink:0 }}>
+                          {processing===p.id ? '…' : '🏠 Mark Return'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── HR Dashboard Tab ──────────────────────────────────────────────
+function GpHRTab() {
+  const [allRequests, setAllRequests] = useState<any[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [statusF,     setStatusF]     = useState('');
+
+  const load = useCallback(() => {
+    setLoading(true);
+    API.get('/gatepass/hr')
+      .then(r => { setAllRequests(r.data?.data || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const filtered = statusF ? allRequests.filter(r => r.status === statusF) : allRequests;
+
+  return (
+    <div>
+      {/* Summary stat chips (act as filters) */}
+      {allRequests.length > 0 && (
+        <div style={{ display:'flex', gap:10, marginBottom:20, flexWrap:'wrap', alignItems:'flex-start' }}>
+          {Object.entries(GP_STATUS).map(([s, meta]) => {
+            const count = allRequests.filter(r => r.status === s).length;
+            if (count === 0) return null;
+            return (
+            <button key={s} onClick={() => setStatusF(statusF===s ? '' : s)}
+              style={{ padding:'12px 20px', borderRadius:12, cursor:'pointer', textAlign:'left' as const, fontFamily:'inherit',
+                background: statusF===s ? meta.bg : 'var(--surface)',
+                border: `1px solid ${statusF===s ? meta.color : 'var(--border)'}` }}>
+              <div style={{ fontSize:22, fontWeight:800, color:meta.color }}>{count}</div>
+              <div style={{ fontSize:11, color:'var(--muted)' }}>{meta.label}</div>
+            </button>
+            );
+          })}
+          {statusF && <button onClick={() => setStatusF('')} style={{ ...gpBtnSec, alignSelf:'center' }}>✕ Clear</button>}
+        </div>
+      )}
+
+      {loading ? <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loading…</div>
+      : filtered.length === 0 ? (
+        <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>No records found.</div>
+      ) : (
+        <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, overflow:'hidden' }}>
+          <div style={{ overflowX:'auto', WebkitOverflowScrolling:'touch' as any }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+              <thead>
+                <tr style={{ background:'var(--bg)', borderBottom:'1px solid var(--border)' }}>
+                  {['Pass #','Employee','Dept','Type','Destination','Expected Return','Exited At','Returned At','Status','Approved By'].map(h => (
+                    <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', whiteSpace:'nowrap', letterSpacing:.4 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((r: any) => {
+                  const req = r.requester || {};
+                  const name = `${req.firstName||''} ${req.lastName||''}`.trim() || '—';
+                  const approvedBy = r.approvedBy ? `${r.approvedBy.firstName} ${r.approvedBy.lastName}` : '—';
+                  return (
+                  <tr key={r.id} style={{ borderBottom:'1px solid var(--border)' }}
+                    onMouseEnter={e => (e.currentTarget.style.background='var(--bg)')}
+                    onMouseLeave={e => (e.currentTarget.style.background='transparent')}>
+                    <td style={{ padding:'10px 14px', fontFamily:'monospace', fontSize:11, color:'var(--muted)', whiteSpace:'nowrap' }}>{r.passNumber}</td>
+                    <td style={{ padding:'10px 14px', fontWeight:600, whiteSpace:'nowrap' }}>{name}</td>
+                    <td style={{ padding:'10px 14px', fontSize:12, color:'var(--muted)' }}>{req.department?.name||'—'}</td>
+                    <td style={{ padding:'10px 14px' }}><GpTypeBadge type={r.outpassType} /></td>
+                    <td style={{ padding:'10px 14px', maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.destination}</td>
+                    <td style={{ padding:'10px 14px', fontSize:12, whiteSpace:'nowrap' }}>{fmtDt(r.expectedReturnTime)}</td>
+                    <td style={{ padding:'10px 14px', fontSize:12, whiteSpace:'nowrap' }}>{fmtDt(r.actualExitTime)}</td>
+                    <td style={{ padding:'10px 14px', fontSize:12, whiteSpace:'nowrap' }}>{fmtDt(r.actualReturnTime)}</td>
+                    <td style={{ padding:'10px 14px' }}><GpStatusBadge status={r.status} /></td>
+                    <td style={{ padding:'10px 14px', fontSize:12, color:'var(--muted)', whiteSpace:'nowrap' }}>{approvedBy}</td>
+                  </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Gatepass Page ────────────────────────────────────────────
+function GatepassPage() {
+  const { user } = useAuth();
+  const [tab, setTab] = useState<'my'|'approve'|'gate'|'hr'>('my');
+
+  const role    = user?.role || '';
+  const isAdmin = ['SUPER_ADMIN','ADMIN'].includes(role);
+  const isMgr   = ['MANAGER','TEAM_LEADER','SUPER_ADMIN','ADMIN'].includes(role);
+
+  const TABS = [
+    { key:'my',      label:'📋 My Requests',  show: true    },
+    { key:'approve', label:'✅ Approvals',     show: isMgr   },
+    { key:'gate',    label:'🚪 Gate Terminal', show: isAdmin },
+    { key:'hr',      label:'📊 HR Dashboard', show: isAdmin },
+  ].filter(t => t.show);
+
+  // If current tab is no longer visible (role change), fall back to first
+  const validTab = TABS.find(t => t.key === tab) ? tab : (TABS[0]?.key as any || 'my');
+
+  return (
+    <div style={{ padding:24 }}>
+      {/* Header */}
+      <div style={{ marginBottom:20 }}>
+        <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>🚪 Gatepass</h1>
+        <div style={{ fontSize:13, color:'var(--muted)', marginTop:4 }}>Employee Outpass Management</div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display:'flex', gap:4, marginBottom:24, background:'var(--bg)', padding:4, borderRadius:10, flexWrap:'wrap' }}>
+        {TABS.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key as any)}
+            style={{ padding:'9px 18px', borderRadius:8, border:'none', cursor:'pointer', fontSize:13, fontWeight:600, fontFamily:'inherit',
+              background: validTab===t.key ? 'var(--surface)' : 'transparent',
+              color:      validTab===t.key ? 'var(--primary)' : 'var(--muted)',
+              boxShadow:  validTab===t.key ? '0 1px 4px rgba(0,0,0,.08)' : 'none' }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      {validTab === 'my'      && <GpMyTab />}
+      {validTab === 'approve' && <GpApprovalsTab />}
+      {validTab === 'gate'    && <GpGateTab />}
+      {validTab === 'hr'      && <GpHRTab />}
+    </div>
+  );
+}
+
 // ─── Root App ─────────────────────────────────────────────────
 export default function AdminApp() {
   const [user,         setUser]         = useState<any>(() => {
@@ -1706,6 +2272,7 @@ export default function AdminApp() {
                     <Route path="/announcements"element={<AnnouncementsPage />} />
                     <Route path="/leaderboard"  element={<LeaderboardPage />} />
                     <Route path="/audit"        element={<AuditPage />} />
+                    <Route path="/gatepass"     element={<GatepassPage />} />
                     <Route path="*"             element={<Navigate to="/dashboard" replace />} />
                   </Routes>
                 </ErrorBoundary>

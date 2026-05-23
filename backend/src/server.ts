@@ -43,6 +43,7 @@ import timerRoutes         from './routes/timer.routes';
 import auditRoutes         from './routes/audit.routes';
 import leaderboardRoutes   from './routes/leaderboard.routes';
 import plantRoutes         from './routes/plant.routes';
+import gatepassRoutes      from './routes/gatepass.routes';
 
 const app    = express();
 const server = http.createServer(app);
@@ -103,6 +104,7 @@ app.use(`${V1}/timer`,         timerRoutes);
 app.use(`${V1}/audit`,         auditRoutes);
 app.use(`${V1}/leaderboard`,   leaderboardRoutes);
 app.use(`${V1}/plants`,        plantRoutes);
+app.use(`${V1}/gatepass`,      gatepassRoutes);
 
 app.use((_req, res) => res.status(404).json({ success: false, message: 'Route not found' }));
 app.use(errorHandler);

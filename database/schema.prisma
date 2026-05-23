@@ -134,11 +134,20 @@ model User {
   productivityMetrics ProductivityMetric[]
   workTimeLogs       WorkTimeLog[]
   conductedLeaveReviews LeaveRequest[]  @relation("LeaveReviewer")
-  announcements      Announcement[]
-  badges             UserBadge[]
-  leaderboardEntries Leaderboard[]
-  refreshTokens      RefreshToken[]
-  otpRecords         OtpRecord[]
+  announcements         Announcement[]
+  badges                UserBadge[]
+  leaderboardEntries    Leaderboard[]
+  refreshTokens         RefreshToken[]
+  otpRecords            OtpRecord[]
+
+  // Gatepass hierarchy
+  reportingManagerId    String?
+  reportingManager      User?             @relation("UserRM", fields: [reportingManagerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reportees             User[]            @relation("UserRM")
+  gatepassRequests      GatepassRequest[] @relation("GatepassRequester")
+  gatepassApprovals     GatepassRequest[] @relation("GatepassApprover")
+  gatepassExitLogs      GatepassRequest[] @relation("GatepassExitGuard")
+  gatepassReturnLogs    GatepassRequest[] @relation("GatepassReturnGuard")
 
   @@index([email])
   @@index([employeeId])
@@ -581,6 +590,43 @@ model Leaderboard {
   @@unique([userId, periodKey])
   @@index([periodKey, points])
   @@map("Leaderboard")
+}
+
+// --- GATEPASS ---------------------------------------------------
+model GatepassRequest {
+  id                 String    @id @default(uuid())
+  passNumber         String    @unique
+  requesterId        String
+  outpassType        String    // OFFICIAL | PERSONAL | MEDICAL | EMERGENCY
+  destination        String
+  purpose            String
+  expectedReturnTime DateTime
+  remarks            String?
+  status             String    @default("PENDING")
+  // PENDING | APPROVED | REJECTED | CANCELLED | EXITED | RETURNED
+
+  approvedById       String?
+  approvedAt         DateTime?
+  approvalRemarks    String?
+
+  actualExitTime     DateTime?
+  exitRecordedById   String?
+  actualReturnTime   DateTime?
+  returnRecordedById String?
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  requester        User  @relation("GatepassRequester",   fields: [requesterId],       references: [id], onDelete: NoAction, onUpdate: NoAction)
+  approvedBy       User? @relation("GatepassApprover",    fields: [approvedById],      references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exitRecordedBy   User? @relation("GatepassExitGuard",   fields: [exitRecordedById],  references: [id], onDelete: NoAction, onUpdate: NoAction)
+  returnRecordedBy User? @relation("GatepassReturnGuard", fields: [returnRecordedById],references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([requesterId])
+  @@index([status])
+  @@index([approvedById])
+  @@index([createdAt])
+  @@map("GatepassRequests")
 }
 
 // --- AUDIT & ACTIVITY -------------------------------------------
