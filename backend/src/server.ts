@@ -20,7 +20,6 @@ import { globalRateLimiter } from './middleware/rateLimiter';
 import { initSocketHandlers } from './sockets';
 import { startCronJobs }      from './jobs';
 import { setIO }              from './services/notification.service';
-import { prisma }             from './config/database';
 import { autoSeedIfEmpty }    from './utils/autoSeed';
 
 import authRoutes          from './routes/auth.routes';
@@ -77,26 +76,6 @@ app.use(globalRateLimiter);
 app.get('/health', (_req, res) => res.json({ status: 'ok', version: process.env.APP_VERSION || '1.0.0', timestamp: new Date().toISOString() }));
 app.get('/metrics', metricsHandler);
 
-// ─── Temporary Debug (remove after login is fixed) ───────────
-app.get('/debug/db', async (_req, res) => {
-  try {
-    const userCount  = await prisma.user.count();
-    const superadmin = await prisma.user.findFirst({
-      where: { email: 'superadmin@company.com' },
-      select: { id: true, email: true, status: true, passwordHash: true, deletedAt: true },
-    });
-    const dbUrl = process.env.DATABASE_URL || '(not set)';
-    const maskedUrl = dbUrl.replace(/:([^@:]+)@/, ':***@');
-    res.json({
-      userCount,
-      superadmin,
-      dbUrl: maskedUrl,
-      nodeEnv: process.env.NODE_ENV,
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // ─── API Docs ────────────────────────────────────────────────
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, { customSiteTitle: 'Enterprise Productivity API', customCss: '.swagger-ui .topbar { display: none }' }));
