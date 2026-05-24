@@ -165,188 +165,328 @@ function LoginPage() {
   return (
     <div style={{
       minHeight:'100vh',
-      background:'linear-gradient(150deg, #0D0D12 0%, #1A060A 40%, #0D0D12 100%)',
+      background:'linear-gradient(150deg, #080810 0%, #120308 45%, #0A0A14 100%)',
       display:'flex', flexDirection:'column',
       alignItems:'center', justifyContent:'center',
       padding:'24px 20px',
       position:'relative', overflow:'hidden',
     }}>
-      {/* Glow orbs */}
-      <div style={{ position:'absolute', top:'-8%', right:'-4%', width:520, height:520,
-        borderRadius:'50%',
-        background:'radial-gradient(circle at center, rgba(200,16,46,0.18) 0%, transparent 65%)',
-        pointerEvents:'none' }} />
-      <div style={{ position:'absolute', bottom:'-12%', left:'-8%', width:600, height:600,
-        borderRadius:'50%',
-        background:'radial-gradient(circle at center, rgba(200,16,46,0.09) 0%, transparent 65%)',
-        pointerEvents:'none' }} />
-      {/* Dot grid */}
-      <div style={{ position:'absolute', inset:0, opacity:.4,
-        backgroundImage:'radial-gradient(circle, rgba(200,16,46,0.18) 1px, transparent 1px)',
-        backgroundSize:'32px 32px', pointerEvents:'none' }} />
 
-      {/* ── Brand mark ── */}
-      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginBottom:28, zIndex:10 }}>
-        {/* PG circular logo with glow rings */}
-        <div style={{ position:'relative', marginBottom:20 }}>
+      {/* ── Animated background layers ── */}
+      {/* Large glow top-right */}
+      <div style={{ position:'absolute', top:'-15%', right:'-10%', width:600, height:600,
+        borderRadius:'50%',
+        background:'radial-gradient(circle at center, rgba(200,16,46,0.22) 0%, transparent 60%)',
+        animation:'pg-pulse 6s ease-in-out infinite', pointerEvents:'none' }} />
+      {/* Large glow bottom-left */}
+      <div style={{ position:'absolute', bottom:'-18%', left:'-12%', width:700, height:700,
+        borderRadius:'50%',
+        background:'radial-gradient(circle at center, rgba(200,16,46,0.10) 0%, transparent 60%)',
+        animation:'pg-pulse 8s ease-in-out infinite reverse', pointerEvents:'none' }} />
+      {/* Small accent orb top-left */}
+      <div style={{ position:'absolute', top:'20%', left:'5%', width:180, height:180,
+        borderRadius:'50%',
+        background:'radial-gradient(circle at center, rgba(255,80,80,0.08) 0%, transparent 70%)',
+        pointerEvents:'none' }} />
+
+      {/* Dot-grid overlay */}
+      <div style={{ position:'absolute', inset:0,
+        backgroundImage:'radial-gradient(circle, rgba(200,16,46,0.14) 1px, transparent 1px)',
+        backgroundSize:'28px 28px', pointerEvents:'none', opacity:.6 }} />
+
+      {/* Diagonal stripe accent (top) */}
+      <div style={{ position:'absolute', top:0, left:0, right:0, height:3,
+        background:'linear-gradient(90deg, transparent, #C8102E 40%, #FF4466 60%, transparent)',
+        opacity:.7, pointerEvents:'none' }} />
+
+      {/* Floating particles */}
+      {[
+        { top:'12%', left:'8%',  size:5,  delay:0   },
+        { top:'28%', left:'90%', size:4,  delay:1.2 },
+        { top:'55%', left:'4%',  size:3,  delay:2.4 },
+        { top:'72%', left:'88%', size:6,  delay:0.8 },
+        { top:'85%', left:'20%', size:4,  delay:1.8 },
+        { top:'40%', left:'95%', size:3,  delay:3.0 },
+      ].map((p, i) => (
+        <div key={i} style={{
+          position:'absolute', top:p.top, left:p.left,
+          width:p.size, height:p.size, borderRadius:'50%',
+          background:'rgba(200,16,46,.55)',
+          animation:`pg-float ${3.5 + i * 0.4}s ease-in-out infinite`,
+          animationDelay:`${p.delay}s`, pointerEvents:'none',
+          boxShadow:`0 0 ${p.size * 2}px rgba(200,16,46,.4)`,
+        }} />
+      ))}
+
+      {/* ── Brand header ── */}
+      <div style={{
+        display:'flex', flexDirection:'column', alignItems:'center',
+        marginBottom:26, zIndex:10,
+        animation:'pg-slideDown .6s cubic-bezier(.34,1.56,.64,1) both',
+      }}>
+        {/* Logo with layered glow rings */}
+        <div style={{ position:'relative', marginBottom:18 }}>
+          {/* Outer glow pulse */}
           <div style={{
-            position:'absolute', inset:-10, borderRadius:'50%',
-            background:'rgba(200,16,46,.12)', filter:'blur(12px)',
+            position:'absolute', inset:-16, borderRadius:'50%',
+            background:'rgba(200,16,46,.12)', filter:'blur(16px)',
+            animation:'pg-pulse 3s ease-in-out infinite',
           }} />
+          {/* Ring 2 */}
           <div style={{
-            width:88, height:88, borderRadius:'50%',
-            background:'linear-gradient(145deg, #E8122F 0%, #A00D24 100%)',
-            display:'flex', alignItems:'center', justifyContent:'center',
-            boxShadow:'0 0 0 6px rgba(200,16,46,.14), 0 0 0 12px rgba(200,16,46,.06), 0 12px 40px rgba(200,16,46,.40)',
-            border:'2px solid rgba(255,255,255,.18)',
-            position:'relative' as any,
+            position:'absolute', inset:-6, borderRadius:'50%',
+            border:'1px solid rgba(200,16,46,.20)',
+          }} />
+          {/* Ring 1 */}
+          <div style={{
+            position:'absolute', inset:-2, borderRadius:'50%',
+            border:'1.5px solid rgba(200,16,46,.35)',
+          }} />
+          {/* Logo image */}
+          <div style={{
+            width:90, height:90, borderRadius:'50%', overflow:'hidden',
+            boxShadow:'0 0 0 3px rgba(200,16,46,.30), 0 12px 48px rgba(200,16,46,.55)',
+            border:'2.5px solid rgba(255,255,255,.15)',
+            position:'relative',
+            background:'#fff',
           }}>
-            <span style={{
-              color:'#fff', fontSize:30, fontWeight:900, letterSpacing:-1.5,
-              fontFamily:"'Arial Black',Arial,sans-serif",
-              textShadow:'0 1px 4px rgba(0,0,0,.25)',
-            }}>PG</span>
+            <img
+              src="/pg-logo.jpg"
+              alt="PG Technoplast"
+              style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+            />
           </div>
         </div>
+
+        {/* Brand name with gradient text */}
         <h1 style={{
-          color:'#fff', fontSize:28, fontWeight:900,
-          margin:'0 0 6px', letterSpacing:-0.8, textAlign:'center',
-          textShadow:'0 2px 20px rgba(0,0,0,.4)',
-        }}>PG Enterprise Suite</h1>
-        <p style={{ color:'rgba(255,255,255,.40)', fontSize:12.5, margin:0,
-          textAlign:'center', letterSpacing:1, textTransform:'uppercase', fontWeight:600 }}>
-          Workforce Management Platform
-        </p>
+          margin:'0 0 5px',
+          fontSize:30, fontWeight:900, letterSpacing:-0.5, textAlign:'center',
+          background:'linear-gradient(135deg, #FFFFFF 0%, #FFD0D8 50%, #FF8097 100%)',
+          WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+          backgroundClip:'text',
+          textShadow:'none',
+          lineHeight:1.1,
+        }}>PG Technoplast</h1>
+
+        {/* Subtitle with decorative lines */}
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:4 }}>
+          <div style={{ width:30, height:1, background:'linear-gradient(90deg, transparent, rgba(200,16,46,.6))' }} />
+          <p style={{
+            color:'rgba(255,255,255,.38)', fontSize:11, margin:0,
+            textAlign:'center', letterSpacing:2, textTransform:'uppercase', fontWeight:700,
+          }}>Workforce Management Platform</p>
+          <div style={{ width:30, height:1, background:'linear-gradient(90deg, rgba(200,16,46,.6), transparent)' }} />
+        </div>
       </div>
 
-      {/* ── Card ── */}
+      {/* ── Login Card ── */}
       <div style={{
-        width:'100%', maxWidth:440, zIndex:10,
-        background:'rgba(255,255,255,0.97)',
-        borderRadius:24, padding:'32px 28px 26px',
-        boxShadow:'0 30px 80px rgba(0,0,0,.50), 0 0 0 1px rgba(255,255,255,.08)',
-        backdropFilter:'blur(20px)',
+        width:'100%', maxWidth:430, zIndex:10,
+        position:'relative',
+        animation:'pg-slideUp .5s cubic-bezier(.34,1.56,.64,1) .15s both',
       }}>
-        <div style={{ marginBottom:24 }}>
-          <h2 style={{ fontSize:22, fontWeight:800, color:'#111827', margin:'0 0 5px', letterSpacing:-.4 }}>
-            Welcome back
-          </h2>
-          <p style={{ fontSize:13.5, color:'#6B7280', margin:0, lineHeight:1.5 }}>
-            Sign in to access your workspace
-          </p>
-        </div>
+        {/* Gradient border glow */}
+        <div style={{
+          position:'absolute', inset:-1.5, borderRadius:26,
+          background:'linear-gradient(135deg, rgba(200,16,46,.5), rgba(255,100,120,.15), rgba(200,16,46,.4))',
+          zIndex:-1, filter:'blur(1px)',
+        }} />
 
-        {err && (
-          <div style={{
-            display:'flex', alignItems:'flex-start', gap:10,
-            background:'#FFF0F2', border:'1.5px solid #FECDD3',
-            borderRadius:12, padding:'12px 14px', marginBottom:20,
-          }}>
-            <span style={{ fontSize:15, flexShrink:0 }}>⚠️</span>
-            <span style={{ fontSize:13, color:'#C8102E', fontWeight:500, lineHeight:1.5 }}>{err}</span>
-          </div>
-        )}
+        <div style={{
+          background:'rgba(255,255,255,0.98)',
+          borderRadius:24, padding:'30px 26px 24px',
+          boxShadow:'0 32px 90px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.10)',
+          backdropFilter:'blur(24px)',
+        }}>
 
-        <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:16 }}>
-
-          {/* Email */}
-          <div>
-            <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#374151',
-              letterSpacing:.6, textTransform:'uppercase', marginBottom:8 }}>Email Address</label>
-            <div style={field(focused === 'email')}>
-              <svg width="17" height="17" fill="none" viewBox="0 0 24 24"
-                stroke={focused === 'email' ? '#C8102E' : '#9CA3AF'} strokeWidth="1.8">
-                <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-              </svg>
-              <input value={email} onChange={e => setEmail(e.target.value)}
-                onFocus={() => setFocused('email')} onBlur={() => setFocused(null)}
-                type="email" required placeholder="you@company.com" style={fieldInput}
-                autoCapitalize="none" autoCorrect="off" inputMode="email" />
+          {/* Card header */}
+          <div style={{ marginBottom:22, display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
+            <div>
+              <h2 style={{ fontSize:21, fontWeight:800, color:'#111827', margin:'0 0 4px', letterSpacing:-.5 }}>
+                Welcome back 👋
+              </h2>
+              <p style={{ fontSize:13, color:'#6B7280', margin:0, lineHeight:1.5 }}>
+                Sign in to access your workspace
+              </p>
             </div>
+            {/* Decorative shield icon */}
+            <div style={{
+              width:40, height:40, borderRadius:12, flexShrink:0,
+              background:'linear-gradient(135deg,#FFF0F2,#FFE0E5)',
+              border:'1.5px solid #FECDD3',
+              display:'flex', alignItems:'center', justifyContent:'center', fontSize:18,
+            }}>🔐</div>
           </div>
 
-          {/* Password */}
-          <div>
-            <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#374151',
-              letterSpacing:.6, textTransform:'uppercase', marginBottom:8 }}>Password</label>
-            <div style={field(focused === 'pass')}>
-              <svg width="17" height="17" fill="none" viewBox="0 0 24 24"
-                stroke={focused === 'pass' ? '#C8102E' : '#9CA3AF'} strokeWidth="1.8">
-                <rect x="3" y="11" width="18" height="11" rx="2"/>
-                <path d="M7 11V7a5 5 0 0110 0v4"/>
-              </svg>
-              <input value={pass} onChange={e => setPass(e.target.value)}
-                onFocus={() => setFocused('pass')} onBlur={() => setFocused(null)}
-                type={showPw ? 'text' : 'password'} required
-                placeholder="Enter your password" style={fieldInput} />
-              <button type="button" onClick={() => setShowPw(v => !v)}
-                style={{ background:'none', border:'none', cursor:'pointer',
-                  color: focused === 'pass' ? '#C8102E' : '#9CA3AF',
-                  fontSize:14, padding:'0 2px', lineHeight:1, flexShrink:0,
-                  display:'flex', alignItems:'center', transition:'color .15s' }}>
-                {showPw ? '🙈' : '👁️'}
+          {/* Divider */}
+          <div style={{ height:1, background:'linear-gradient(90deg,transparent,#E5E7EB,transparent)', marginBottom:22 }} />
+
+          {err && (
+            <div style={{
+              display:'flex', alignItems:'flex-start', gap:10,
+              background:'#FFF0F2', border:'1.5px solid #FECDD3',
+              borderRadius:12, padding:'12px 14px', marginBottom:18,
+              animation:'pg-shake .4s ease',
+            }}>
+              <span style={{ fontSize:15, flexShrink:0 }}>⚠️</span>
+              <span style={{ fontSize:13, color:'#C8102E', fontWeight:500, lineHeight:1.5 }}>{err}</span>
+            </div>
+          )}
+
+          <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+
+            {/* Email */}
+            <div>
+              <label style={{ display:'block', fontSize:10.5, fontWeight:700, color:'#374151',
+                letterSpacing:.7, textTransform:'uppercase', marginBottom:7 }}>Email Address</label>
+              <div style={field(focused === 'email')}>
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24"
+                  stroke={focused === 'email' ? '#C8102E' : '#9CA3AF'} strokeWidth="2">
+                  <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                <input value={email} onChange={e => setEmail(e.target.value)}
+                  onFocus={() => setFocused('email')} onBlur={() => setFocused(null)}
+                  type="email" required placeholder="you@company.com" style={fieldInput}
+                  autoCapitalize="none" autoCorrect="off" inputMode="email" />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label style={{ display:'block', fontSize:10.5, fontWeight:700, color:'#374151',
+                letterSpacing:.7, textTransform:'uppercase', marginBottom:7 }}>Password</label>
+              <div style={field(focused === 'pass')}>
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24"
+                  stroke={focused === 'pass' ? '#C8102E' : '#9CA3AF'} strokeWidth="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2"/>
+                  <path d="M7 11V7a5 5 0 0110 0v4"/>
+                </svg>
+                <input value={pass} onChange={e => setPass(e.target.value)}
+                  onFocus={() => setFocused('pass')} onBlur={() => setFocused(null)}
+                  type={showPw ? 'text' : 'password'} required
+                  placeholder="Enter your password" style={fieldInput} />
+                <button type="button" onClick={() => setShowPw(v => !v)}
+                  style={{ background:'none', border:'none', cursor:'pointer',
+                    color: focused === 'pass' ? '#C8102E' : '#9CA3AF',
+                    fontSize:14, padding:'0 2px', lineHeight:1, flexShrink:0,
+                    display:'flex', alignItems:'center', transition:'color .15s' }}>
+                  {showPw
+                    ? <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"/></svg>
+                    : <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  }
+                </button>
+              </div>
+            </div>
+
+            {/* Sign In button with shimmer */}
+            <div style={{ position:'relative', marginTop:4, overflow:'hidden', borderRadius:14 }}>
+              <button type="submit" disabled={busy} style={{
+                width:'100%', height:52, borderRadius:14, border:'none',
+                background: busy
+                  ? 'linear-gradient(135deg,#E8849A,#C06075)'
+                  : 'linear-gradient(135deg, #E8122F 0%, #9B0D20 100%)',
+                color:'#fff', fontSize:15.5, fontWeight:800,
+                cursor: busy ? 'not-allowed' : 'pointer',
+                display:'flex', alignItems:'center', justifyContent:'center', gap:10,
+                boxShadow: busy ? 'none' : '0 8px 28px rgba(200,16,46,.50)',
+                transition:'all .2s cubic-bezier(.4,0,.2,1)',
+                letterSpacing:.4, position:'relative', overflow:'hidden',
+              }}>
+                {/* Shimmer sweep */}
+                {!busy && <div style={{
+                  position:'absolute', inset:0,
+                  background:'linear-gradient(105deg, transparent 40%, rgba(255,255,255,.18) 50%, transparent 60%)',
+                  animation:'pg-shimmer 2.5s ease-in-out infinite',
+                }} />}
+                {busy ? (
+                  <>
+                    <span style={{ display:'inline-block', width:17, height:17, borderRadius:'50%',
+                      border:'2.5px solid rgba(255,255,255,.4)', borderTopColor:'#fff',
+                      animation:'pg-spin .7s linear infinite' }} />
+                    Signing in…
+                  </>
+                ) : (
+                  <>
+                    Sign In
+                    <svg width="18" height="18" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                  </>
+                )}
               </button>
             </div>
+          </form>
+
+          {/* Divider */}
+          <div style={{ display:'flex', alignItems:'center', gap:12, margin:'18px 0 14px' }}>
+            <div style={{ flex:1, height:1, background:'#F0F0F0' }} />
+            <span style={{ fontSize:11, color:'#9CA3AF', fontWeight:600, letterSpacing:.5 }}>FEATURES</span>
+            <div style={{ flex:1, height:1, background:'#F0F0F0' }} />
           </div>
 
-          {/* Submit */}
-          <button type="submit" disabled={busy} style={{
-            width:'100%', height:54, borderRadius:14, border:'none', marginTop:6,
-            background: busy
-              ? 'linear-gradient(135deg,#E8849A,#C06075)'
-              : 'linear-gradient(135deg, #E8122F 0%, #A00D24 100%)',
-            color:'#fff', fontSize:16, fontWeight:800,
-            cursor: busy ? 'not-allowed' : 'pointer',
-            display:'flex', alignItems:'center', justifyContent:'center', gap:10,
-            boxShadow: busy ? 'none' : '0 6px 24px rgba(200,16,46,.42)',
-            transition:'all .2s cubic-bezier(.4,0,.2,1)',
-            letterSpacing:.3,
+          {/* Feature pills — upgraded */}
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'center', marginBottom:16 }}>
+            {[
+              { icon:'📋', label:'Tasks',       bg:'#EFF6FF', border:'#BFDBFE', color:'#1D4ED8' },
+              { icon:'📅', label:'Attendance',  bg:'#F0FDF4', border:'#BBF7D0', color:'#15803D' },
+              { icon:'🏆', label:'Leaderboard', bg:'#FFFBEB', border:'#FDE68A', color:'#92400E' },
+              { icon:'🚪', label:'Gatepass',    bg:'#FFF0F2', border:'#FECDD3', color:'#C8102E' },
+            ].map(f => (
+              <span key={f.label} style={{
+                fontSize:11, padding:'5px 12px', borderRadius:99,
+                background:f.bg, color:f.color, fontWeight:700,
+                border:`1.5px solid ${f.border}`,
+                display:'flex', alignItems:'center', gap:5,
+                boxShadow:'0 1px 4px rgba(0,0,0,.06)',
+              }}>
+                {f.icon} {f.label}
+              </span>
+            ))}
+          </div>
+
+          {/* Demo credentials */}
+          <div style={{
+            padding:'12px 14px', borderRadius:12,
+            background:'linear-gradient(135deg, #F9FAFB, #F3F4F6)',
+            border:'1.5px dashed #D1D5DB',
           }}>
-            {busy ? (
-              <>
-                <span style={{ display:'inline-block', width:18, height:18, borderRadius:'50%',
-                  border:'2.5px solid rgba(255,255,255,.4)', borderTopColor:'#fff',
-                  animation:'pg-spin .7s linear infinite' }} />
-                Signing in…
-              </>
-            ) : (
-              <>
-                Sign In
-                <svg width="18" height="18" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
-              </>
-            )}
-          </button>
-        </form>
-
-        {/* Feature pills */}
-        <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'center', marginTop:20, marginBottom:16 }}>
-          {['📋 Tasks','📅 Attendance','🏆 Leaderboard','🚪 Gatepass'].map(f => (
-            <span key={f} style={{ fontSize:11, padding:'4px 12px', borderRadius:99,
-              background:'#F4F4F5', color:'#374151', fontWeight:600, border:'1px solid #E4E4E7' }}>{f}</span>
-          ))}
-        </div>
-
-        {/* Demo credentials */}
-        <div style={{ padding:'13px 16px', background:'#F9FAFB', borderRadius:12,
-          border:'1.5px dashed #E5E7EB' }}>
-          <div style={{ fontSize:10.5, fontWeight:700, color:'#6B7280', marginBottom:5,
-            textTransform:'uppercase', letterSpacing:.6 }}>🧪 Demo Credentials</div>
-          <div style={{ fontSize:12.5, color:'#111827', fontFamily:'monospace', lineHeight:1.9 }}>
-            superadmin@company.com<br/>
-            <span style={{ color:'#C8102E', fontWeight:700 }}>Admin@123456</span>
+            <div style={{ fontSize:10, fontWeight:800, color:'#9CA3AF', marginBottom:5,
+              textTransform:'uppercase', letterSpacing:.8, display:'flex', alignItems:'center', gap:5 }}>
+              <span>🧪</span> Demo Credentials
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div style={{ fontSize:12, color:'#374151', fontFamily:'monospace', lineHeight:1.8 }}>
+                superadmin@company.com<br/>
+                <span style={{ color:'#C8102E', fontWeight:700 }}>Admin@123456</span>
+              </div>
+              <div style={{ fontSize:20 }}>🔑</div>
+            </div>
           </div>
         </div>
       </div>
 
-      <p style={{ fontSize:11.5, color:'rgba(255,255,255,.20)', marginTop:28, textAlign:'center', zIndex:10 }}>
-        © 2025 PG Enterprise Suite · All rights reserved
-      </p>
+      {/* Footer */}
+      <div style={{ zIndex:10, marginTop:24, textAlign:'center', animation:'pg-slideUp .5s ease .3s both' }}>
+        <p style={{ fontSize:11, color:'rgba(255,255,255,.18)', margin:'0 0 4px' }}>
+          © 2025 PG Technoplast Ltd · All rights reserved
+        </p>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+          <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(200,16,46,.5)' }} />
+          <span style={{ fontSize:10, color:'rgba(255,255,255,.14)', letterSpacing:.5 }}>SECURE · ENCRYPTED · ENTERPRISE</span>
+          <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(200,16,46,.5)' }} />
+        </div>
+      </div>
 
       <style>{`
-        @keyframes pg-spin { to { transform: rotate(360deg); } }
-        @keyframes fadeIn  { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+        @keyframes pg-spin     { to { transform: rotate(360deg); } }
+        @keyframes pg-pulse    { 0%,100% { opacity:.7; transform:scale(1); } 50% { opacity:1; transform:scale(1.06); } }
+        @keyframes pg-float    { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-10px); } }
+        @keyframes pg-shimmer  { 0% { transform:translateX(-100%); } 60%,100% { transform:translateX(200%); } }
+        @keyframes pg-slideDown{ from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:none; } }
+        @keyframes pg-slideUp  { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:none; } }
+        @keyframes pg-shake    { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-4px)} 40%,80%{transform:translateX(4px)} }
+        @keyframes fadeIn      { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
       `}</style>
     </div>
   );
