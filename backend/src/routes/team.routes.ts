@@ -1,6 +1,7 @@
 import { Router }  from 'express';
 import { prisma }   from '../config/database';
 import { authenticate, authorize, MANAGEMENT_ROLES } from '../middleware/auth.middleware';
+import { withCache, invalidateKeys, TTL } from '../utils/cache';
 import type { AuthRequest } from '../types';
 
 const router = Router();
@@ -8,15 +9,17 @@ router.use(authenticate);
 
 router.get('/', async (_req, res, next) => {
   try {
-    const teams = await prisma.team.findMany({
-      where:   { isActive: true },
-      include: {
-        leader:     { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
-        department: { select: { id: true, name: true } },
-        _count:     { select: { members: true, tasks: true } },
-      },
-      orderBy: { name: 'asc' },
-    });
+    const teams = await withCache('teams:all', TTL.XLONG, () =>
+      prisma.team.findMany({
+        where:   { isActive: true },
+        include: {
+          leader:     { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+          department: { select: { id: true, name: true } },
+          _count:     { select: { members: true, tasks: true } },
+        },
+        orderBy: { name: 'asc' },
+      })
+    );
     res.json({ success: true, data: teams });
   } catch (err) { next(err); }
 });
@@ -26,6 +29,7 @@ router.post('/', authorize(...MANAGEMENT_ROLES), async (req: AuthRequest, res, n
     const team = await prisma.team.create({ data: req.body, include: { leader: true, department: true } });
     // Auto-create chat room for team
     await prisma.chatRoom.create({ data: { name: `${team.name} Chat`, isGroupChat: true, teamId: team.id } });
+    await invalidateKeys('teams:all');
     res.status(201).json({ success: true, data: team });
   } catch (err) { next(err); }
 });
@@ -52,6 +56,7 @@ router.get('/:id', async (req, res, next) => {
 router.put('/:id', authorize(...MANAGEMENT_ROLES), async (req, res, next) => {
   try {
     const team = await prisma.team.update({ where: { id: req.params.id }, data: req.body });
+    await invalidateKeys('teams:all');
     res.json({ success: true, data: team });
   } catch (err) { next(err); }
 });
@@ -59,6 +64,7 @@ router.put('/:id', authorize(...MANAGEMENT_ROLES), async (req, res, next) => {
 router.delete('/:id', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res, next) => {
   try {
     await prisma.team.update({ where: { id: req.params.id }, data: { isActive: false } });
+    await invalidateKeys('teams:all');
     res.json({ success: true, message: 'Team deactivated' });
   } catch (err) { next(err); }
 });

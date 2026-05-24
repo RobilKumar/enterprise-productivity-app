@@ -65,8 +65,8 @@ export function EmployeesPage() {
       const { data } = await API.get('/users', {
         params: { page, limit: LIMIT, search: search || undefined, status: statusF || undefined },
       });
-      setUsers(data.data);
-      setTotal(data.pagination.total);
+      setUsers(data.data || []);
+      setTotal(data.pagination?.total ?? 0);
     } catch {}
     setLoading(false);
   }, [page, search, statusF]);
@@ -75,9 +75,9 @@ export function EmployeesPage() {
 
   // load dropdowns once
   useEffect(() => {
-    API.get('/roles').then(r => setRoles(r.data.data)).catch(() => {});
-    API.get('/departments').then(r => setDepts(r.data.data)).catch(() => {});
-    API.get('/teams').then(r => setTeams(r.data.data)).catch(() => {});
+    API.get('/roles').then(r => setRoles(r.data.data || [])).catch(() => {});
+    API.get('/departments').then(r => setDepts(r.data.data || [])).catch(() => {});
+    API.get('/teams').then(r => setTeams(r.data.data || []))  .catch(() => {});
     API.get('/users', { params: { limit: 300 } }).then(r => setAllUsers(r.data.data || [])).catch(() => {});
   }, []);
 
@@ -432,7 +432,7 @@ export function TasksManagementPage() {
     setLoading(true);
     try {
       const { data } = await API.get('/tasks', { params: { page, limit: LIMIT, status: status || undefined } });
-      setTasks(data.data); setTotal(data.pagination.total);
+      setTasks(data.data || []); setTotal(data.pagination?.total ?? 0);
     } catch {}
     setLoading(false);
   }, [page, status]);
@@ -440,8 +440,8 @@ export function TasksManagementPage() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    API.get('/users', { params: { limit: 100 } }).then(r => setUsers(r.data.data)).catch(() => {});
-    API.get('/teams').then(r => setTeams(r.data.data)).catch(() => {});
+    API.get('/users', { params: { limit: 100 } }).then(r => setUsers(r.data.data || [])).catch(() => {});
+    API.get('/teams').then(r => setTeams(r.data.data || [])).catch(() => {});
   }, []);
 
   async function createTask() {

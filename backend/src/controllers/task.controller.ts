@@ -5,6 +5,7 @@ import { AppError } from '../middleware/errorHandler';
 import { NotificationService } from '../services/notification.service';
 import { createAuditLog } from '../services/audit.service';
 import { GamificationService } from '../services/gamification.service';
+import { withCache, invalidateByPattern, TTL } from '../utils/cache';
 import type { AuthRequest } from '../types';
 
 // ─── Zod Schemas ─────────────────────────────────────────────
@@ -107,6 +108,9 @@ export async function createTask(req: AuthRequest, res: Response, next: NextFunc
       userId: req.user!.userId, action: 'CREATE_TASK', entity: 'Task', entityId: task.id, newData: body, req,
     });
 
+    // Invalidate all task list caches
+    await invalidateByPattern('tasks:*');
+
     return res.status(201).json({ success: true, data: task });
   } catch (err) {
     next(err);
@@ -122,10 +126,19 @@ export async function getTasks(req: AuthRequest, res: Response, next: NextFuncti
     const where: any = { deletedAt: null };
 
     // RBAC filtering: employees only see own tasks
-    if (role === 'EMPLOYEE') where.assigneeId = userId;
-    else if (role === 'TEAM_LEADER') {
-      const leader = await prisma.user.findUnique({ where: { id: userId }, select: { teamId: true } });
-      if (leader?.teamId) where.teamId = leader.teamId;
+    if (role === 'EMPLOYEE') {
+      where.assigneeId = userId;
+    } else if (role === 'TEAM_LEADER') {
+      // Fix N+1: cache team leader's teamId — it rarely changes
+      const teamId = await withCache(
+        `user:${userId}:teamId`,
+        TTL.LONG,
+        async () => {
+          const u = await prisma.user.findUnique({ where: { id: userId }, select: { teamId: true } });
+          return u?.teamId ?? null;
+        },
+      );
+      if (teamId) where.teamId = teamId;
     }
 
     // Filters
@@ -139,29 +152,20 @@ export async function getTasks(req: AuthRequest, res: Response, next: NextFuncti
     if (query.dueAfter)   where.dueDate    = { ...where.dueDate, gt: new Date(query.dueAfter) };
     if (query.search) {
       where.OR = [
-        { title:       { contains: query.search } },
-        { description: { contains: query.search } },
-        { category:    { contains: query.search } },
+        { title:       { contains: query.search, mode: 'insensitive' } },
+        { description: { contains: query.search, mode: 'insensitive' } },
+        { category:    { contains: query.search, mode: 'insensitive' } },
       ];
     }
 
-    const [tasks, total] = await prisma.$transaction([
-      prisma.task.findMany({
-        where,
-        skip:  (query.page - 1) * query.limit,
-        take:  query.limit,
-        orderBy: query.sortBy === 'priority'
-          ? [{ priority: 'asc' }, { createdAt: 'desc' }]
-          : [{ [query.sortBy]: query.sortOrder }],
-        include: {
-          assignee:   { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
-          createdBy:  { select: { id: true, firstName: true, lastName: true } },
-          team:       { select: { id: true, name: true } },
-          _count:     { select: { comments: true, attachments: true } },
-        },
-      }),
-      prisma.task.count({ where }),
-    ]);
+    // Cache key: scoped by user + role + all query params
+    // Skip caching for search queries (too varied) or specific assignee overrides
+    const isCacheable = !query.search && !query.dueBefore && !query.dueAfter;
+    const cacheKey = `tasks:${role}:${userId}:p${query.page}:l${query.limit}:s${query.status || ''}:pr${query.priority || ''}:t${query.teamId || ''}:so${query.sortBy}:${query.sortOrder}`;
+
+    const { tasks, total } = isCacheable
+      ? await withCache(cacheKey, TTL.SHORT, () => runTaskQuery(where, query))
+      : await runTaskQuery(where, query);
 
     return res.json({
       success: true,
@@ -176,6 +180,27 @@ export async function getTasks(req: AuthRequest, res: Response, next: NextFuncti
   } catch (err) {
     next(err);
   }
+}
+
+async function runTaskQuery(where: any, query: any) {
+  const [tasks, total] = await prisma.$transaction([
+    prisma.task.findMany({
+      where,
+      skip:  (query.page - 1) * query.limit,
+      take:  query.limit,
+      orderBy: query.sortBy === 'priority'
+        ? [{ priority: 'asc' }, { createdAt: 'desc' }]
+        : [{ [query.sortBy]: query.sortOrder }],
+      include: {
+        assignee:   { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+        createdBy:  { select: { id: true, firstName: true, lastName: true } },
+        team:       { select: { id: true, name: true } },
+        _count:     { select: { comments: true, attachments: true } },
+      },
+    }),
+    prisma.task.count({ where }),
+  ]);
+  return { tasks, total };
 }
 
 // ─── Get Single Task ──────────────────────────────────────────
@@ -272,6 +297,8 @@ export async function updateTask(req: AuthRequest, res: Response, next: NextFunc
       oldData: existing, newData: body, req,
     });
 
+    await invalidateByPattern('tasks:*');
+
     return res.json({ success: true, data: task });
   } catch (err) {
     next(err);
@@ -340,6 +367,8 @@ export async function updateTaskStatus(req: AuthRequest, res: Response, next: Ne
       });
     }
 
+    await invalidateByPattern('tasks:*');
+
     return res.json({ success: true, data: updated });
   } catch (err) {
     next(err);
@@ -363,6 +392,8 @@ export async function deleteTask(req: AuthRequest, res: Response, next: NextFunc
     await createAuditLog({
       userId: req.user!.userId, action: 'DELETE_TASK', entity: 'Task', entityId: id, req,
     });
+
+    await invalidateByPattern('tasks:*');
 
     return res.json({ success: true, message: 'Task deleted successfully' });
   } catch (err) {

@@ -1941,13 +1941,7 @@ function LockScreen({ onUnlock, error, verifying }: {
       background:'linear-gradient(160deg,#1a0510 0%,#2d0a1a 50%,#1a0510 100%)' }}>
 
       {/* PG Logo */}
-      <svg width={72} height={72} viewBox="0 0 44 44" fill="none" style={{ marginBottom:24 }}>
-        <circle cx="22" cy="22" r="22" fill="#C8102E"/>
-        <circle cx="22" cy="22" r="19.5" fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth="1"/>
-        <text x="22" y="29" textAnchor="middle" fill="white"
-          fontFamily="'Arial Black','Arial Bold',Arial,sans-serif"
-          fontWeight="900" fontSize="17" letterSpacing="-0.8">PG</text>
-      </svg>
+      <img src="/pg-logo.jpg" alt="PG" style={{ width:80, height:80, borderRadius:12, marginBottom:24, objectFit:'contain' }} />
 
       {/* Fingerprint icon */}
       <div style={{ width:88, height:88, borderRadius:'50%', marginBottom:28,

@@ -3,7 +3,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   // Unique reverse-domain app identifier — change the company prefix if needed
   appId: 'com.enterprise.productivity',
-  appName: 'Enterprise Productivity',
+  appName: 'PG',
 
   // Vite builds here — Capacitor bundles this folder into the APK
   webDir: 'dist',

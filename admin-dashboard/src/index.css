@@ -3,6 +3,11 @@
    Inspired by Atlassian / Jira design language
    ============================================================ */
 
+/* Disable native pull-to-refresh on Android WebView */
+html, body {
+  overscroll-behavior: none;
+}
+
 /* ── CSS Custom Properties (Light Theme) ─────────────────── */
 :root {
   --bg:           #F7F8F9;

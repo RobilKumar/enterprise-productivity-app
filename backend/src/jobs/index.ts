@@ -1,4 +1,6 @@
 import cron from 'node-cron';
+import https from 'https';
+import http  from 'http';
 import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
 import { NotificationService } from '../services/notification.service';
@@ -7,6 +9,28 @@ import { NotificationService } from '../services/notification.service';
 
 export function startCronJobs(): void {
   logger.info('Starting cron jobs...');
+
+  // ─── Every 14 min: Keep-alive self-ping (prevents Render free-tier sleep) ──
+  // Render.com spins down services after 15 min of inactivity.
+  // Pinging /health every 14 min keeps the server awake 24/7.
+  const selfUrl = process.env.RENDER_EXTERNAL_URL   // set automatically by Render
+                || process.env.APP_URL               // fallback custom env var
+                || null;
+
+  if (selfUrl) {
+    cron.schedule('*/14 * * * *', () => {
+      const url = `${selfUrl}/health`;
+      const mod = url.startsWith('https') ? https : http;
+      const req = mod.get(url, (res) => {
+        logger.info(`Keep-alive ping → ${url} [${res.statusCode}]`);
+      });
+      req.on('error', (e) => logger.warn(`Keep-alive ping failed: ${e.message}`));
+      req.end();
+    });
+    logger.info(`Keep-alive cron enabled → ${selfUrl}/health`);
+  } else {
+    logger.info('Keep-alive cron skipped (RENDER_EXTERNAL_URL / APP_URL not set — not on Render)');
+  }
 
   // ─── Every 30 min: Auto-escalate overdue tasks ────────────────
   cron.schedule('*/30 * * * *', async () => {

@@ -5,6 +5,7 @@ import { authenticate, authorize, MANAGEMENT_ROLES, selfOrAdmin } from '../middl
 import { uploadRateLimiter } from '../middleware/rateLimiter';
 import { AppError }          from '../middleware/errorHandler';
 import { uploadAvatar }      from '../controllers/upload.controller';
+import { withCache, invalidateByPattern, TTL } from '../utils/cache';
 import bcrypt                from 'bcryptjs';
 import type { AuthRequest }  from '../types';
 
@@ -29,32 +30,42 @@ router.get('/', authorize(...MANAGEMENT_ROLES), async (req: AuthRequest, res, ne
     if (deptId) where.departmentId = deptId;
     if (teamId) where.teamId       = teamId;
     if (role)   where.role         = { name: role };
-    // SQL Server uses case-insensitive collation by default — no mode needed
     if (search) where.OR = [
-      { firstName:  { contains: search } },
-      { lastName:   { contains: search } },
-      { email:      { contains: search } },
-      { employeeId: { contains: search } },
+      { firstName:  { contains: search, mode: 'insensitive' } },
+      { lastName:   { contains: search, mode: 'insensitive' } },
+      { email:      { contains: search, mode: 'insensitive' } },
+      { employeeId: { contains: search, mode: 'insensitive' } },
     ];
 
-    const [users, total] = await prisma.$transaction([
-      prisma.user.findMany({
-        where,
-        skip:    (page - 1) * limit,
-        take:    limit,
-        select: {
-          id: true, employeeId: true, firstName: true, lastName: true,
-          email: true, phone: true, status: true, avatarUrl: true,
-          joiningDate: true, isOnline: true, totalPoints: true, lastActiveAt: true,
-          role:       { select: { name: true, displayName: true } },
-          department: { select: { id: true, name: true } },
-          team:       { select: { id: true, name: true } },
-          _count:     { select: { assignedTasks: true } },
-        },
-        orderBy: { firstName: 'asc' },
-      }),
-      prisma.user.count({ where }),
-    ]);
+    // Cache large dropdown fetches (limit >= 100, no search/filters) for 5 min
+    const isDropdownFetch = !search && !status && !deptId && !teamId && !role && limit >= 100;
+    const cacheKey = `users:list:p${page}:l${limit}:s${status || ''}:d${deptId || ''}:t${teamId || ''}:r${role || ''}`;
+
+    const runQuery = async () => {
+      const [users, total] = await prisma.$transaction([
+        prisma.user.findMany({
+          where,
+          skip:    (page - 1) * limit,
+          take:    limit,
+          select: {
+            id: true, employeeId: true, firstName: true, lastName: true,
+            email: true, phone: true, status: true, avatarUrl: true,
+            joiningDate: true, isOnline: true, totalPoints: true, lastActiveAt: true,
+            role:       { select: { name: true, displayName: true } },
+            department: { select: { id: true, name: true } },
+            team:       { select: { id: true, name: true } },
+            _count:     { select: { assignedTasks: true } },
+          },
+          orderBy: { firstName: 'asc' },
+        }),
+        prisma.user.count({ where }),
+      ]);
+      return { users, total };
+    };
+
+    const { users, total } = isDropdownFetch
+      ? await withCache(cacheKey, TTL.LONG, runQuery)
+      : await runQuery();
 
     res.json({ success: true, data: users, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
   } catch (err) { next(err); }
@@ -89,6 +100,9 @@ router.put('/:id', authorize(...MANAGEMENT_ROLES), async (req: AuthRequest, res,
       data:  { firstName, lastName, phone, status, roleId, departmentId, teamId, shiftType, address, joiningDate: joiningDate ? new Date(joiningDate) : undefined, updatedAt: new Date() },
       include: { role: true, department: true, team: true },
     });
+    // Invalidate user list cache and team leader's cached teamId
+    await invalidateByPattern('users:list:*');
+    await invalidateByPattern(`user:${req.params.id}:*`);
     res.json({ success: true, data: user });
   } catch (err) { next(err); }
 });
@@ -115,6 +129,8 @@ router.patch('/:id/change-password', selfOrAdmin('id'), async (req: AuthRequest,
 router.delete('/:id', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res, next) => {
   try {
     await prisma.user.update({ where: { id: req.params.id }, data: { deletedAt: new Date(), status: 'INACTIVE' } });
+    await invalidateByPattern('users:list:*');
+    await invalidateByPattern(`user:${req.params.id}:*`);
     res.json({ success: true, message: 'User deactivated' });
   } catch (err) { next(err); }
 });

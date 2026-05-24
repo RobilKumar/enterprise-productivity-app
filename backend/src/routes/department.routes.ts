@@ -1,20 +1,23 @@
 import { Router } from 'express';
 import { prisma }  from '../config/database';
 import { authenticate, authorize, MANAGEMENT_ROLES } from '../middleware/auth.middleware';
+import { withCache, invalidateKeys, TTL } from '../utils/cache';
 
 const router = Router();
 router.use(authenticate);
 
 router.get('/', async (_req, res, next) => {
   try {
-    const depts = await prisma.department.findMany({
-      where:   { isActive: true },
-      include: {
-        manager: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
-        _count:  { select: { users: true, teams: true } },
-      },
-      orderBy: { name: 'asc' },
-    });
+    const depts = await withCache('depts:all', TTL.XLONG, () =>
+      prisma.department.findMany({
+        where:   { isActive: true },
+        include: {
+          manager: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+          _count:  { select: { users: true, teams: true } },
+        },
+        orderBy: { name: 'asc' },
+      })
+    );
     res.json({ success: true, data: depts });
   } catch (err) { next(err); }
 });
@@ -22,6 +25,7 @@ router.get('/', async (_req, res, next) => {
 router.post('/', authorize(...MANAGEMENT_ROLES), async (req, res, next) => {
   try {
     const dept = await prisma.department.create({ data: req.body });
+    await invalidateKeys('depts:all');
     res.status(201).json({ success: true, data: dept });
   } catch (err) { next(err); }
 });
@@ -44,6 +48,7 @@ router.get('/:id', async (req, res, next) => {
 router.put('/:id', authorize(...MANAGEMENT_ROLES), async (req, res, next) => {
   try {
     const dept = await prisma.department.update({ where: { id: req.params.id }, data: req.body });
+    await invalidateKeys('depts:all');
     res.json({ success: true, data: dept });
   } catch (err) { next(err); }
 });
@@ -53,6 +58,7 @@ router.delete('/:id', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res, next) 
     const count = await prisma.user.count({ where: { departmentId: req.params.id, deletedAt: null } });
     if (count > 0) return res.status(400).json({ success: false, message: `Cannot delete department with ${count} active users` });
     await prisma.department.update({ where: { id: req.params.id }, data: { isActive: false } });
+    await invalidateKeys('depts:all');
     res.json({ success: true, message: 'Department deactivated' });
   } catch (err) { next(err); }
 });

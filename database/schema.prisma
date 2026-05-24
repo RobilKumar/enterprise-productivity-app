@@ -158,6 +158,11 @@ model User {
   @@index([plantId])
   @@index([status])
   @@index([deletedAt])
+  // Composite indexes for scale — most queries filter deletedAt IS NULL first
+  @@index([deletedAt, status])
+  @@index([deletedAt, departmentId])
+  @@index([deletedAt, teamId])
+  @@index([deletedAt, roleId])
   @@map("Users")
 }
 
@@ -264,6 +269,13 @@ model Task {
   @@index([dueDate])
   @@index([isEscalated])
   @@index([deletedAt])
+  // Composite indexes for 5000-user scale — covers most common filtered queries
+  @@index([deletedAt, assigneeId])
+  @@index([deletedAt, status])
+  @@index([deletedAt, teamId])
+  @@index([deletedAt, createdById])
+  @@index([assigneeId, status])
+  @@index([dueDate, status])
   @@map("Tasks")
 }
 
@@ -368,6 +380,8 @@ model Attendance {
   @@index([userId])
   @@index([date])
   @@index([status])
+  @@index([date, status])      // composite: attendance reports filtered by date range + status
+  @@index([userId, date])      // composite: per-user attendance timeline
   @@map("Attendance")
 }
 
@@ -436,6 +450,8 @@ model Notification {
 
   @@index([userId])
   @@index([isRead])
+  @@index([userId, isRead])    // composite: unread notification count per user (hot path)
+  @@index([userId, createdAt]) // composite: notification feed ordered by time
   @@map("Notifications")
 }
 
@@ -627,6 +643,8 @@ model GatepassRequest {
   @@index([status])
   @@index([approvedById])
   @@index([createdAt])
+  @@index([requesterId, createdAt]) // composite: user's own gatepass history
+  @@index([status, createdAt])      // composite: admin pending/approved list ordered by time
   @@map("GatepassRequests")
 }
 

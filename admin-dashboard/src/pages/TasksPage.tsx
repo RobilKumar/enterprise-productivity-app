@@ -59,8 +59,8 @@ export default function TasksPage() {
       if (statusF)  params.status   = statusF;
       if (priorityF) params.priority = priorityF;
       const { data } = await API.get('/tasks', { params });
-      setTasks(data.data);
-      setTotal(data.pagination.total);
+      setTasks(data.data || []);
+      setTotal(data.pagination?.total ?? 0);
     } catch { /* */ }
     finally { setLoading(false); }
   }, [page, search, statusF, priorityF]);
@@ -145,7 +145,7 @@ export default function TasksPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-xs font-semibold text-indigo-700 dark:text-indigo-300">
-                        {t.assignee.firstName[0]}{t.assignee.lastName[0]}
+                        {t.assignee?.firstName?.[0]}{t.assignee?.lastName?.[0]}
                       </div>
                       <span className="text-gray-700 dark:text-gray-300">{t.assignee.firstName} {t.assignee.lastName}</span>
                     </div>

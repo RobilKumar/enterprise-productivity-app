@@ -204,6 +204,8 @@ export async function getTeamKPI(req: AuthRequest, res: Response, next: NextFunc
 }
 
 // ─── Company-wide KPI ────────────────────────────────────────
+// Optimised for 5 000+ users: heavy deptStats replaced with a single
+// raw-SQL aggregation so the DB does the work, not Node.
 export async function getCompanyKPI(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     if (!['SUPER_ADMIN', 'ADMIN'].includes(req.user!.role)) throw new AppError('Access denied', 403);
@@ -211,48 +213,102 @@ export async function getCompanyKPI(req: AuthRequest, res: Response, next: NextF
     const { startDate, endDate } = DateRangeSchema.parse(req.query);
     const { start, end } = getDateRange(startDate, endDate);
 
+    // 5-minute cache keyed by date range
+    const cacheKey = `kpi:company:${start.toISOString()}:${end.toISOString()}`;
+    const cached = await redis.get(cacheKey);
+    if (cached) return res.json({ success: true, data: JSON.parse(cached) });
+
+    // Run all queries in parallel (independent — no transaction needed)
     const [
-      overallTasks, deptStats, topPerformers, slaBreaches,
-      productivityTrend, workloadByPriority,
-    ] = await prisma.$transaction([
+      overallTasks,
+      deptStats,
+      topPerformers,
+      slaBreaches,
+      productivityTrend,
+      workloadByPriority,
+    ] = await Promise.all([
+      // 1. Overall task breakdown by status
       prisma.task.groupBy({
         by:     ['status'],
         where:  { deletedAt: null, createdAt: { gte: start, lte: end } },
         _count: { _all: true },
         orderBy: { status: 'asc' },
       }),
-      prisma.department.findMany({
-        where:   { isActive: true },
-        include: {
-          _count: { select: { users: true } },
-          users:  {
-            where: { deletedAt: null },
-            include: {
-              assignedTasks: {
-                where:  { deletedAt: null, createdAt: { gte: start, lte: end } },
-                select: { status: true, completedAt: true, dueDate: true },
-              },
-            },
-          },
-        },
-      }),
+
+      // 2. Per-department stats — raw SQL aggregation (single query, no N+1)
+      prisma.$queryRaw<Array<{
+        departmentId: string;
+        departmentName: string;
+        headCount: bigint;
+        totalTasks: bigint;
+        completed: bigint;
+        inProgress: bigint;
+        pending: bigint;
+        rejected: bigint;
+        completionRate: number | null;
+        onTimeRate: number | null;
+      }>>`
+        SELECT
+          d.id                                                      AS "departmentId",
+          d.name                                                    AS "departmentName",
+          COUNT(DISTINCT u.id)                                      AS "headCount",
+          COUNT(DISTINCT t.id)                                      AS "totalTasks",
+          COUNT(DISTINCT CASE WHEN t.status = 'COMPLETED'  THEN t.id END) AS "completed",
+          COUNT(DISTINCT CASE WHEN t.status = 'IN_PROGRESS' THEN t.id END) AS "inProgress",
+          COUNT(DISTINCT CASE WHEN t.status = 'PENDING'    THEN t.id END) AS "pending",
+          COUNT(DISTINCT CASE WHEN t.status = 'REJECTED'   THEN t.id END) AS "rejected",
+          ROUND(
+            CASE WHEN COUNT(DISTINCT t.id) = 0 THEN 0
+                 ELSE COUNT(DISTINCT CASE WHEN t.status = 'COMPLETED' THEN t.id END)::float
+                      / COUNT(DISTINCT t.id)::float * 100
+            END
+          )                                                         AS "completionRate",
+          ROUND(AVG(
+            CASE
+              WHEN t."completedAt" IS NOT NULL AND t."dueDate" IS NOT NULL
+                   AND t."completedAt" <= t."dueDate" THEN 100.0
+              WHEN t."completedAt" IS NOT NULL AND t."dueDate" IS NOT NULL
+                   AND t."completedAt" > t."dueDate"  THEN 0.0
+              ELSE NULL
+            END
+          ))                                                        AS "onTimeRate"
+        FROM "Departments" d
+        LEFT JOIN "Users" u
+          ON u."departmentId" = d.id AND u."deletedAt" IS NULL
+        LEFT JOIN "Tasks" t
+          ON t."assigneeId" = u.id
+         AND t."deletedAt"  IS NULL
+         AND t."createdAt" >= ${start}
+         AND t."createdAt" <= ${end}
+        WHERE d."isActive" = true
+        GROUP BY d.id, d.name
+        ORDER BY d.name
+      `,
+
+      // 3. Top performers (simple lookup — already indexed on totalPoints)
       prisma.user.findMany({
         where:   { deletedAt: null, status: 'ACTIVE' },
         orderBy: { totalPoints: 'desc' },
         take:    10,
         select:  { id: true, firstName: true, lastName: true, avatarUrl: true, totalPoints: true, employeeId: true },
       }),
+
+      // 4. SLA aggregates
       prisma.productivityMetric.aggregate({
         where: { date: { gte: start, lte: end } },
         _sum:  { slaBreaches: true },
         _avg:  { productivityScore: true },
       }),
+
+      // 5. Productivity trend (daily avg)
       prisma.productivityMetric.groupBy({
         by:    ['date'],
         where: { date: { gte: start, lte: end } },
         _avg:  { productivityScore: true, totalWorkHours: true },
         orderBy: { date: 'asc' },
       }),
+
+      // 6. Active workload by priority
       prisma.task.groupBy({
         by:     ['priority'],
         where:  { deletedAt: null, status: { in: ['PENDING', 'IN_PROGRESS', 'ON_HOLD'] } },
@@ -261,18 +317,32 @@ export async function getCompanyKPI(req: AuthRequest, res: Response, next: NextF
       }),
     ]);
 
-    return res.json({
-      success: true,
-      data: {
-        overallTasks,
-        deptStats,
-        topPerformers,
-        slaBreaches:    slaBreaches._sum.slaBreaches || 0,
-        avgProductivity: Math.round((slaBreaches._avg.productivityScore || 0) * 10) / 10,
-        productivityTrend,
-        workloadByPriority,
-      },
-    });
+    // Convert BigInt to Number for JSON serialisation
+    const deptStatsSafe = (deptStats as any[]).map((d) => ({
+      ...d,
+      headCount:      Number(d.headCount),
+      totalTasks:     Number(d.totalTasks),
+      completed:      Number(d.completed),
+      inProgress:     Number(d.inProgress),
+      pending:        Number(d.pending),
+      rejected:       Number(d.rejected),
+      completionRate: d.completionRate !== null ? Number(d.completionRate) : 0,
+      onTimeRate:     d.onTimeRate     !== null ? Number(d.onTimeRate)     : 0,
+    }));
+
+    const data = {
+      overallTasks,
+      deptStats:       deptStatsSafe,
+      topPerformers,
+      slaBreaches:     slaBreaches._sum.slaBreaches || 0,
+      avgProductivity: Math.round((slaBreaches._avg.productivityScore || 0) * 10) / 10,
+      productivityTrend,
+      workloadByPriority,
+    };
+
+    await redis.setex(cacheKey, 300, JSON.stringify(data));
+
+    return res.json({ success: true, data });
   } catch (err) {
     next(err);
   }
