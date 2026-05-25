@@ -35,6 +35,10 @@ function Modal({ title, onClose, children, width = 520 }: { title: string; onClo
    EMPLOYEES PAGE — full CRUD
 ══════════════════════════════════════════════════════════════════════ */
 export function EmployeesPage() {
+  const storedUser  = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+  const currentRole = storedUser?.role || '';
+  const canChangeId = ['SUPER_ADMIN', 'ADMIN'].includes(currentRole);
+
   const [users,   setUsers]   = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState('');
@@ -128,7 +132,17 @@ export function EmployeesPage() {
         // extract new user id from response (various response shapes)
         savedId = res.data?.data?.user?.id || res.data?.data?.id || res.data?.user?.id || null;
       } else {
-        // update via users/:id
+        // If Employee ID changed and user has permission, update it first
+        const trimmedId = form.employeeId.trim().toUpperCase();
+        if (canChangeId && trimmedId && trimmedId !== (target.employeeId || '').toUpperCase()) {
+          if (!/^[A-Z0-9_\-]{1,20}$/.test(trimmedId)) {
+            setErrMsg('Employee ID: use 1–20 letters/digits/_ or - only');
+            setSaving(false);
+            return;
+          }
+          await API.patch(`/users/${target.id}/employee-id`, { newEmployeeId: trimmedId });
+        }
+        // update other fields via users/:id
         const payload: any = {
           firstName:    form.firstName,
           lastName:     form.lastName,
@@ -285,25 +299,34 @@ export function EmployeesPage() {
       {/* ── Add / Edit Modal ──────────────────────────────────── */}
       {(modal === 'add' || modal === 'edit') && (
         <Modal title={modal === 'add' ? 'Add New Employee' : `Edit — ${target?.firstName} ${target?.lastName}`} onClose={() => setModal(null)}>
-          {/* Employee ID — only for new employees */}
-          {modal === 'add' && (
-            <div style={{ marginBottom: 14, padding: '12px 14px', borderRadius: 10,
-              background: 'linear-gradient(135deg,#EFF6FF,#DBEAFE)', border: '1.5px solid #BFDBFE' }}>
-              <label style={{ ...labelSt, color: '#1D4ED8' }}>
-                🪪 Employee ID (Login ID) *
-              </label>
-              <input
-                style={{ ...inputSt, fontFamily:'monospace', fontWeight:700, letterSpacing:1,
-                  textTransform:'uppercase', color:'#1D4ED8' }}
-                value={form.employeeId}
-                onChange={e => f('employeeId', e.target.value.toUpperCase())}
-                placeholder="e.g. EMP00010 or PGT001"
-              />
+          {/* Employee ID — shown for both add and edit */}
+          <div style={{ marginBottom: 14, padding: '12px 14px', borderRadius: 10,
+            background: 'linear-gradient(135deg,#EFF6FF,#DBEAFE)', border: '1.5px solid #BFDBFE' }}>
+            <label style={{ ...labelSt, color: '#1D4ED8' }}>
+              🪪 Employee ID (Login ID)
+              {modal === 'add' && <span style={{ fontWeight: 400, marginLeft: 4 }}>*</span>}
+              {modal === 'edit' && !canChangeId && <span style={{ fontWeight: 400, color: '#6B7280', marginLeft: 6 }}>(read-only)</span>}
+            </label>
+            <input
+              style={{ ...inputSt, fontFamily:'monospace', fontWeight:700, letterSpacing:1,
+                textTransform:'uppercase', color:'#1D4ED8',
+                ...(modal === 'edit' && !canChangeId ? { opacity: 0.65, cursor: 'not-allowed' } : {}) }}
+              value={form.employeeId}
+              readOnly={modal === 'edit' && !canChangeId}
+              onChange={e => f('employeeId', e.target.value.toUpperCase())}
+              placeholder={modal === 'add' ? 'e.g. EMP00010 or PGT001' : ''}
+            />
+            {modal === 'add' && (
               <div style={{ fontSize: 11, color: '#3B82F6', marginTop: 5 }}>
                 ℹ️ This will be the employee's <strong>login ID</strong>. Leave blank to auto-generate (EMP00001, EMP00002…)
               </div>
-            </div>
-          )}
+            )}
+            {modal === 'edit' && canChangeId && (
+              <div style={{ fontSize: 11, color: '#D97706', marginTop: 5 }}>
+                ⚠️ Changing this ID means the employee must use the new ID to log in.
+              </div>
+            )}
+          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 14 }}>
             <div>
