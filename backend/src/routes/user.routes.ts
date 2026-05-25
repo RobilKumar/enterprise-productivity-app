@@ -126,8 +126,8 @@ router.patch('/:id/change-password', selfOrAdmin('id'), async (req: AuthRequest,
   } catch (err) { next(err); }
 });
 
-// PATCH /users/:id/employee-id  (SUPER_ADMIN only — change an employee's ID)
-router.patch('/:id/employee-id', authorize('SUPER_ADMIN'), async (req: AuthRequest, res, next) => {
+// PATCH /users/:id/employee-id  (SUPER_ADMIN + ADMIN — change an employee's ID)
+router.patch('/:id/employee-id', authorize('SUPER_ADMIN', 'ADMIN'), async (req: AuthRequest, res, next) => {
   try {
     const { newEmployeeId } = req.body;
 

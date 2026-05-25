@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Search, Plus, Filter, Edit2, Trash2, Eye, UserCheck, UserX, RefreshCw, Hash } from 'lucide-react';
+import { Search, Plus, Edit2, UserCheck, UserX, RefreshCw } from 'lucide-react';
 
 interface User {
   id: string;
@@ -39,35 +39,36 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default function EmployeesPage() {
-  // Detect if the logged-in user is a SUPER_ADMIN
-  const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
-  const isSuperAdmin = storedUser?.role === 'SUPER_ADMIN';
+  // Current logged-in user role
+  const storedUser  = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+  const currentRole = storedUser?.role || '';
+  const canChangeId = ['SUPER_ADMIN', 'ADMIN'].includes(currentRole);
 
-  const [users, setUsers]       = useState<User[]>([]);
-  const [total, setTotal]       = useState(0);
-  const [page, setPage]         = useState(1);
-  const [search, setSearch]     = useState('');
-  const [statusF, setStatusF]   = useState('');
-  const [roleF, setRoleF]       = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [users, setUsers]         = useState<User[]>([]);
+  const [total, setTotal]         = useState(0);
+  const [page, setPage]           = useState(1);
+  const [search, setSearch]       = useState('');
+  const [statusF, setStatusF]     = useState('');
+  const [roleF, setRoleF]         = useState('');
+  const [loading, setLoading]     = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing]   = useState<User | null>(null);
-  const [roles, setRoles]       = useState<Role[]>([]);
-  const [depts, setDepts]       = useState<Dept[]>([]);
-  const [teams, setTeams]       = useState<Team[]>([]);
-  const [form, setForm]         = useState({
-    firstName: '', lastName: '', email: '', phone: '',
-    password: '', roleId: '', departmentId: '', teamId: '',
+  const [editing, setEditing]     = useState<User | null>(null);
+  const [roles, setRoles]         = useState<Role[]>([]);
+  const [depts, setDepts]         = useState<Dept[]>([]);
+  const [teams, setTeams]         = useState<Team[]>([]);
+  const [form, setForm]           = useState({
+    employeeId:   '',
+    firstName:    '',
+    lastName:     '',
+    email:        '',
+    phone:        '',
+    password:     '',
+    roleId:       '',
+    departmentId: '',
+    teamId:       '',
   });
   const [formError, setFormError] = useState('');
-  const [saving, setSaving]     = useState(false);
-
-  // ─── Change Employee ID state ─────────────────────────────────
-  const [idModal, setIdModal]   = useState(false);
-  const [idTarget, setIdTarget] = useState<User | null>(null);
-  const [newEmpId, setNewEmpId] = useState('');
-  const [idError, setIdError]   = useState('');
-  const [idSaving, setIdSaving] = useState(false);
+  const [saving, setSaving]       = useState(false);
 
   const limit = 20;
 
@@ -95,14 +96,24 @@ export default function EmployeesPage() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ firstName: '', lastName: '', email: '', phone: '', password: '', roleId: '', departmentId: '', teamId: '' });
+    setForm({ employeeId: '', firstName: '', lastName: '', email: '', phone: '', password: '', roleId: '', departmentId: '', teamId: '' });
     setFormError('');
     setShowModal(true);
   }
 
   function openEdit(u: User) {
     setEditing(u);
-    setForm({ firstName: u.firstName, lastName: u.lastName, email: u.email, phone: u.phone || '', password: '', roleId: u.role.name, departmentId: '', teamId: '' });
+    setForm({
+      employeeId:   u.employeeId,
+      firstName:    u.firstName,
+      lastName:     u.lastName,
+      email:        u.email,
+      phone:        u.phone || '',
+      password:     '',
+      roleId:       u.role.name,
+      departmentId: '',
+      teamId:       '',
+    });
     setFormError('');
     setShowModal(true);
   }
@@ -112,9 +123,25 @@ export default function EmployeesPage() {
     setFormError('');
     try {
       if (editing) {
-        await axios.put(`/api/v1/users/${editing.id}`, form);
+        // If Employee ID changed, update it via the dedicated endpoint first
+        const trimmedId = form.employeeId.trim().toUpperCase();
+        if (trimmedId && trimmedId !== editing.employeeId) {
+          if (!/^[A-Z0-9_\-]{1,20}$/.test(trimmedId)) {
+            setFormError('Employee ID: use 1–20 letters/digits/_ or - only');
+            setSaving(false);
+            return;
+          }
+          await axios.patch(`/api/v1/users/${editing.id}/employee-id`, { newEmployeeId: trimmedId });
+        }
+        // Update other fields
+        const { employeeId: _eid, password: _pw, ...updateFields } = form;
+        await axios.put(`/api/v1/users/${editing.id}`, updateFields);
       } else {
-        await axios.post('/api/v1/auth/register', form);
+        // Create — send employeeId only if filled in
+        const payload: any = { ...form };
+        if (!payload.employeeId.trim()) delete payload.employeeId;
+        else payload.employeeId = payload.employeeId.trim().toUpperCase();
+        await axios.post('/api/v1/auth/register', payload);
       }
       setShowModal(false);
       fetchUsers();
@@ -129,32 +156,6 @@ export default function EmployeesPage() {
       await axios.put(`/api/v1/users/${u.id}`, { status: newStatus });
       fetchUsers();
     } catch { /* */ }
-  }
-
-  function openChangeId(u: User) {
-    setIdTarget(u);
-    setNewEmpId(u.employeeId);
-    setIdError('');
-    setIdModal(true);
-  }
-
-  async function handleChangeId() {
-    if (!idTarget) return;
-    const trimmed = newEmpId.trim().toUpperCase();
-    if (!trimmed) { setIdError('Employee ID cannot be empty'); return; }
-    if (!/^[A-Z0-9_\-]{1,20}$/.test(trimmed)) {
-      setIdError('Use 1–20 characters: letters, digits, _ or - only');
-      return;
-    }
-    setIdSaving(true);
-    setIdError('');
-    try {
-      await axios.patch(`/api/v1/users/${idTarget.id}/employee-id`, { newEmployeeId: trimmed });
-      setIdModal(false);
-      fetchUsers();
-    } catch (e: any) {
-      setIdError(e.response?.data?.message || 'Failed to update Employee ID');
-    } finally { setIdSaving(false); }
   }
 
   const totalPages = Math.ceil(total / limit);
@@ -230,12 +231,12 @@ export default function EmployeesPage() {
                       </div>
                       <div>
                         <div className="font-medium text-gray-900 dark:text-white">{u.firstName} {u.lastName}</div>
-                        <div className="text-xs text-gray-400">{u.employeeId} · {u.email}</div>
+                        <div className="text-xs text-gray-400 font-mono">{u.employeeId} · {u.email}</div>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`badge ${ROLE_COLORS[u.role.name] || 'badge-gray'}`}>{u.role.name.replace('_', ' ')}</span>
+                    <span className={`badge ${ROLE_COLORS[u.role.name] || 'badge-gray'}`}>{u.role.name.replace(/_/g, ' ')}</span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="text-gray-700 dark:text-gray-300">{u.department?.name || '—'}</div>
@@ -253,16 +254,7 @@ export default function EmployeesPage() {
                       <button onClick={() => openEdit(u)} title="Edit employee" className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
                         <Edit2 size={14} />
                       </button>
-                      {isSuperAdmin && (
-                        <button
-                          onClick={() => openChangeId(u)}
-                          title="Change Employee ID"
-                          className="p-1.5 text-gray-400 hover:text-purple-600 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950 transition-colors"
-                        >
-                          <Hash size={14} />
-                        </button>
-                      )}
-                      <button onClick={() => toggleStatus(u)} className={`p-1.5 rounded-lg transition-colors ${u.status === 'ACTIVE' ? 'text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-950'}`}>
+                      <button onClick={() => toggleStatus(u)} title={u.status === 'ACTIVE' ? 'Suspend' : 'Activate'} className={`p-1.5 rounded-lg transition-colors ${u.status === 'ACTIVE' ? 'text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-950'}`}>
                         {u.status === 'ACTIVE' ? <UserX size={14} /> : <UserCheck size={14} />}
                       </button>
                     </div>
@@ -278,106 +270,48 @@ export default function EmployeesPage() {
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-800">
             <span className="text-xs text-gray-500">Page {page} of {totalPages}</span>
             <div className="flex gap-1">
-              <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="px-3 py-1 text-sm rounded-lg border disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Prev</button>
+              <button disabled={page <= 1}         onClick={() => setPage(p => p - 1)} className="px-3 py-1 text-sm rounded-lg border disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Prev</button>
               <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="px-3 py-1 text-sm rounded-lg border disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Next</button>
             </div>
           </div>
         )}
       </div>
 
-      {/* ── Change Employee ID Modal (SUPER_ADMIN only) ─── */}
-      {idModal && idTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between p-6 border-b dark:border-gray-800">
-              <div>
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <Hash size={18} className="text-purple-600" />
-                  Change Employee ID
-                </h2>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {idTarget.firstName} {idTarget.lastName} &nbsp;·&nbsp; {idTarget.email}
-                </p>
-              </div>
-              <button onClick={() => setIdModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              {/* Current ID (read-only) */}
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Current Employee ID</label>
-                <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                  <Hash size={14} className="text-gray-400" />
-                  <span className="font-mono font-semibold text-gray-700 dark:text-gray-300 tracking-widest">
-                    {idTarget.employeeId}
-                  </span>
-                </div>
-              </div>
-
-              {/* Arrow / divider */}
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
-                <span className="text-xs text-gray-400">change to</span>
-                <div className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
-              </div>
-
-              {/* New ID input */}
-              <div>
-                <label className="block text-xs font-medium mb-1">New Employee ID *</label>
-                <input
-                  className="input font-mono tracking-widest uppercase"
-                  placeholder="e.g. EMP00042"
-                  value={newEmpId}
-                  maxLength={20}
-                  onChange={e => setNewEmpId(e.target.value.toUpperCase())}
-                  onKeyDown={e => e.key === 'Enter' && handleChangeId()}
-                  autoFocus
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  1–20 characters: letters, digits, underscore or dash. Will be stored in uppercase.
-                </p>
-              </div>
-
-              {/* Warning note */}
-              <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2.5 text-xs text-amber-700 dark:text-amber-300">
-                <span className="text-base leading-none mt-0.5">⚠️</span>
-                <span>
-                  The employee will need to use the <strong>new ID</strong> to log in from now on.
-                  Make sure to inform them before saving.
-                </span>
-              </div>
-
-              {idError && (
-                <p className="text-sm text-red-500 bg-red-50 dark:bg-red-950 px-3 py-2 rounded-lg">
-                  {idError}
-                </p>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-3 p-6 border-t dark:border-gray-800">
-              <button onClick={() => setIdModal(false)} className="btn-secondary">Cancel</button>
-              <button
-                onClick={handleChangeId}
-                disabled={idSaving || newEmpId.trim() === ''}
-                className="btn-primary flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
-              >
-                {idSaving && <span className="spinner border-white w-4 h-4" />}
-                {idSaving ? 'Saving…' : 'Update Employee ID'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create/Edit Modal */}
+      {/* ── Add / Edit Employee Modal ─────────────────────────────── */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg">
-            <div className="flex items-center justify-between p-6 border-b dark:border-gray-800">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b dark:border-gray-800 sticky top-0 bg-white dark:bg-gray-900 z-10">
               <h2 className="text-lg font-semibold">{editing ? 'Edit Employee' : 'Add New Employee'}</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
             </div>
+
             <div className="p-6 space-y-4">
+
+              {/* ── Employee ID ──────────────────────────────────── */}
+              <div>
+                <label className="block text-xs font-medium mb-1">
+                  Employee ID
+                  {!editing && <span className="ml-1 text-gray-400 font-normal">(optional — auto-generated if blank)</span>}
+                  {editing && !canChangeId && <span className="ml-1 text-gray-400 font-normal">(read-only)</span>}
+                </label>
+                <input
+                  className="input font-mono tracking-widest uppercase"
+                  placeholder={editing ? editing.employeeId : 'e.g. EMP00042 or leave blank'}
+                  value={form.employeeId}
+                  maxLength={20}
+                  readOnly={editing !== null && !canChangeId}
+                  onChange={e => setForm(f => ({ ...f, employeeId: e.target.value.toUpperCase() }))}
+                  style={editing !== null && !canChangeId ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
+                />
+                {editing && canChangeId && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                    ⚠ Changing this ID means the employee must use the new ID to log in.
+                  </p>
+                )}
+              </div>
+
+              {/* ── Name ──────────────────────────────────────────── */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium mb-1">First Name *</label>
@@ -388,6 +322,8 @@ export default function EmployeesPage() {
                   <input className="input" value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} />
                 </div>
               </div>
+
+              {/* ── Contact ───────────────────────────────────────── */}
               <div>
                 <label className="block text-xs font-medium mb-1">Email *</label>
                 <input type="email" className="input" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
@@ -396,19 +332,25 @@ export default function EmployeesPage() {
                 <label className="block text-xs font-medium mb-1">Phone</label>
                 <input className="input" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
               </div>
+
+              {/* ── Password (create only) ────────────────────────── */}
               {!editing && (
                 <div>
                   <label className="block text-xs font-medium mb-1">Password *</label>
                   <input type="password" className="input" placeholder="Min 8 chars, uppercase, number, special" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
                 </div>
               )}
+
+              {/* ── Role ──────────────────────────────────────────── */}
               <div>
                 <label className="block text-xs font-medium mb-1">Role *</label>
                 <select className="input" value={form.roleId} onChange={e => setForm(f => ({ ...f, roleId: e.target.value }))}>
                   <option value="">Select role</option>
-                  {roles.map(r => <option key={r.id} value={r.id}>{r.name.replace('_', ' ')}</option>)}
+                  {roles.map(r => <option key={r.id} value={r.id}>{r.name.replace(/_/g, ' ')}</option>)}
                 </select>
               </div>
+
+              {/* ── Dept + Team ───────────────────────────────────── */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium mb-1">Department</label>
@@ -425,9 +367,11 @@ export default function EmployeesPage() {
                   </select>
                 </div>
               </div>
+
               {formError && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-950 px-3 py-2 rounded-lg">{formError}</p>}
             </div>
-            <div className="flex justify-end gap-3 p-6 border-t dark:border-gray-800">
+
+            <div className="flex justify-end gap-3 p-6 border-t dark:border-gray-800 sticky bottom-0 bg-white dark:bg-gray-900">
               <button onClick={() => setShowModal(false)} className="btn-secondary">Cancel</button>
               <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2">
                 {saving && <span className="spinner border-white w-4 h-4" />}

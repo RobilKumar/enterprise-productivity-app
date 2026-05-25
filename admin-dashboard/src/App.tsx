@@ -1177,40 +1177,299 @@ function DepartmentsPage() {
   );
 }
 
-// ─── Teams page ───────────────────────────────────────────────
+// ─── Team Master Page ─────────────────────────────────────────
 function TeamsPage() {
   const [teams,   setTeams]   = useState<any[]>([]);
+  const [users,   setUsers]   = useState<any[]>([]);
+  const [depts,   setDepts]   = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [modal,   setModal]   = useState<'create'|'edit'|'members'|null>(null);
+  const [active,  setActive]  = useState<any>(null);
+  const [saving,  setSaving]  = useState(false);
+  const [err,     setErr]     = useState('');
+  const [search,  setSearch]  = useState('');
+  const [memberSearch, setMemberSearch] = useState('');
+  const [teamDetail,   setTeamDetail]   = useState<any>(null);     // full team with members
+  const [form, setForm] = useState({ name: '', description: '', departmentId: '', leaderId: '' });
 
-  useEffect(() => {
-    API.get('/teams').then(r => { setTeams(r.data.data); setLoading(false); }).catch(() => setLoading(false));
-  }, []);
+  const load = () => {
+    setLoading(true);
+    Promise.all([
+      API.get('/teams'),
+      API.get('/users', { params: { limit: 200 } }),
+      API.get('/departments'),
+    ]).then(([tRes, uRes, dRes]) => {
+      setTeams(tRes.data.data || []);
+      setUsers(uRes.data.data || []);
+      setDepts(dRes.data.data || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const openCreate = () => {
+    setForm({ name: '', description: '', departmentId: '', leaderId: '' });
+    setActive(null); setErr(''); setModal('create');
+  };
+  const openEdit = (t: any) => {
+    setForm({ name: t.name, description: t.description || '', departmentId: t.department?.id || t.departmentId || '', leaderId: t.leader?.id || t.leaderId || '' });
+    setActive(t); setErr(''); setModal('edit');
+  };
+  const openMembers = async (t: any) => {
+    setActive(t); setMemberSearch(''); setErr('');
+    try {
+      const r = await API.get(`/teams/${t.id}`);
+      setTeamDetail(r.data.data);
+    } catch { setTeamDetail(t); }
+    setModal('members');
+  };
+  const closeModal = () => { setModal(null); setActive(null); setErr(''); setTeamDetail(null); };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setSaving(true); setErr('');
+    const payload: any = { name: form.name, description: form.description || null };
+    if (form.departmentId) payload.departmentId = form.departmentId;
+    if (form.leaderId)     payload.leaderId     = form.leaderId;
+    try {
+      if (modal === 'create') await API.post('/teams', payload);
+      else if (active)        await API.put(`/teams/${active.id}`, payload);
+      closeModal(); load();
+    } catch (ex: any) { setErr(ex.response?.data?.message || 'Save failed'); }
+    finally { setSaving(false); }
+  };
+
+  const deleteTeam = async (t: any) => {
+    if (!window.confirm(`Deactivate team "${t.name}"? Members will keep their data.`)) return;
+    try { await API.delete(`/teams/${t.id}`); load(); }
+    catch (ex: any) { alert(ex.response?.data?.message || 'Cannot deactivate'); }
+  };
+
+  // Member management: add = set teamId; remove = clear teamId
+  const addMember = async (userId: string) => {
+    setSaving(true); setErr('');
+    try {
+      await API.put(`/users/${userId}`, { teamId: active.id });
+      const r = await API.get(`/teams/${active.id}`);
+      setTeamDetail(r.data.data);
+      load();  // refresh card counts
+    } catch (ex: any) { setErr(ex.response?.data?.message || 'Failed to add member'); }
+    finally { setSaving(false); }
+  };
+
+  const removeMember = async (userId: string) => {
+    setSaving(true); setErr('');
+    try {
+      await API.put(`/users/${userId}`, { teamId: null });
+      const r = await API.get(`/teams/${active.id}`);
+      setTeamDetail(r.data.data);
+      load();
+    } catch (ex: any) { setErr(ex.response?.data?.message || 'Failed to remove member'); }
+    finally { setSaving(false); }
+  };
+
+  const currentMemberIds = new Set((teamDetail?.members || []).map((m: any) => m.id));
+  const availableUsers   = users.filter(u =>
+    !currentMemberIds.has(u.id) &&
+    `${u.firstName} ${u.lastName} ${u.employeeId}`.toLowerCase().includes(memberSearch.toLowerCase())
+  );
 
   return (
     <div style={{ padding:24 }}>
-      <h1 style={{ fontSize:22, fontWeight:700, marginBottom:20 }}>Teams</h1>
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
+        <div>
+          <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>🏢 Team Master</h1>
+          <p style={{ fontSize:13, color:'var(--muted)', margin:'4px 0 0' }}>Create and manage teams, assign leaders and members</p>
+        </div>
+        <button onClick={openCreate} style={{ padding:'9px 20px', borderRadius:9, background:'var(--primary)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600 }}>+ New Team</button>
+      </div>
+
       {loading ? <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loading…</div> : (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:16 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:16 }}>
           {teams.map((t: any) => (
-            <div key={t.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:20 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14 }}>
-                <div style={{ width:44, height:44, borderRadius:12, background:'var(--primary-bg)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>🏢</div>
-                <div>
-                  <div style={{ fontWeight:700, fontSize:15 }}>{t.name}</div>
-                  <div style={{ fontSize:12, color:'var(--muted)' }}>{t.department?.name}</div>
+            <div key={t.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:20, display:'flex', flexDirection:'column', gap:10 }}>
+              {/* Card header */}
+              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <div style={{ width:46, height:46, borderRadius:12, background:'linear-gradient(135deg,#06B6D4,#0891B2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, flexShrink:0 }}>🏢</div>
+                  <div>
+                    <div style={{ fontWeight:700, fontSize:15 }}>{t.name}</div>
+                    <div style={{ fontSize:12, color:'var(--muted)' }}>{t.department?.name || 'No department'}</div>
+                  </div>
+                </div>
+                <div style={{ display:'flex', gap:5, flexShrink:0 }}>
+                  <button onClick={() => openMembers(t)} title="Manage members" style={{ padding:'5px 9px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12, color:'var(--primary)' }}>👥</button>
+                  <button onClick={() => openEdit(t)}    title="Edit team"       style={{ padding:'5px 9px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12 }}>✏️</button>
+                  <button onClick={() => deleteTeam(t)}  title="Deactivate"      style={{ padding:'5px 9px', borderRadius:7, border:'1px solid #FCA5A5',        background:'transparent', cursor:'pointer', fontSize:12, color:'#EF4444' }}>🗑️</button>
                 </div>
               </div>
-              <div style={{ display:'flex', gap:20, fontSize:12, color:'var(--muted)', marginBottom:12 }}>
+
+              {t.description && <p style={{ fontSize:13, color:'var(--muted)', margin:0, lineHeight:1.5 }}>{t.description}</p>}
+
+              {/* Stats */}
+              <div style={{ display:'flex', gap:16, fontSize:12, color:'var(--muted)' }}>
                 <span>👥 {t._count?.members || 0} members</span>
                 <span>📋 {t._count?.tasks   || 0} tasks</span>
               </div>
-              {t.leader && (
-                <div style={{ fontSize:12, color:'var(--muted)', padding:'8px 12px', background:'var(--bg)', borderRadius:8 }}>
-                  👑 {t.leader.firstName} {t.leader.lastName}
+
+              {/* Leader */}
+              {t.leader ? (
+                <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px', background:'var(--bg)', borderRadius:8 }}>
+                  <div style={{ width:26, height:26, borderRadius:'50%', background:'linear-gradient(135deg,#C8102E,#8B0D1F)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:10, flexShrink:0 }}>
+                    {t.leader.firstName?.[0]}{t.leader.lastName?.[0]}
+                  </div>
+                  <div>
+                    <div style={{ fontSize:12, fontWeight:600 }}>👑 {t.leader.firstName} {t.leader.lastName}</div>
+                    <div style={{ fontSize:10, color:'var(--muted)' }}>Team Leader</div>
+                  </div>
                 </div>
+              ) : (
+                <div style={{ fontSize:12, color:'var(--muted)', fontStyle:'italic' }}>No leader assigned</div>
               )}
             </div>
           ))}
+          {teams.length === 0 && (
+            <div style={{ gridColumn:'1/-1', textAlign:'center', padding:60, color:'var(--muted)' }}>
+              No teams yet. Click "New Team" to create one.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Create / Edit Modal ──────────────────────────────────── */}
+      {(modal === 'create' || modal === 'edit') && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }} onClick={e=>e.target===e.currentTarget&&closeModal()}>
+          <div style={{ width:480, background:'var(--surface)', borderRadius:16, padding:28, maxHeight:'90vh', overflowY:'auto' }}>
+            <h2 style={{ fontSize:18, fontWeight:700, marginBottom:20 }}>
+              {modal==='create' ? '🏢 New Team' : `✏️ Edit — ${active?.name}`}
+            </h2>
+            {err && <div style={{ background:'#FEF2F2', color:'#DC2626', padding:'10px 14px', borderRadius:8, marginBottom:14, fontSize:13 }}>{err}</div>}
+            <form onSubmit={submit}>
+              <label style={labelStyle}>Team Name *</label>
+              <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required placeholder="e.g. Alpha Squad" style={inputStyle} />
+
+              <label style={labelStyle}>Description</label>
+              <textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})} rows={2} placeholder="Optional description…" style={{ ...inputStyle, resize:'vertical' as const }} />
+
+              <label style={labelStyle}>Department</label>
+              <select value={form.departmentId} onChange={e=>setForm({...form,departmentId:e.target.value})} style={inputStyle}>
+                <option value="">— None —</option>
+                {depts.map((d:any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+
+              <label style={labelStyle}>Team Leader</label>
+              <select value={form.leaderId} onChange={e=>setForm({...form,leaderId:e.target.value})} style={inputStyle}>
+                <option value="">— No leader —</option>
+                {users.map((u:any) => (
+                  <option key={u.id} value={u.id}>
+                    {u.firstName} {u.lastName} ({u.employeeId}) — {u.role?.name||u.role}
+                  </option>
+                ))}
+              </select>
+
+              <div style={{ display:'flex', gap:10, marginTop:22 }}>
+                <button type="button" onClick={closeModal} style={{ ...smBtn, flex:1, padding:12, textAlign:'center' }}>Cancel</button>
+                <button type="submit" disabled={saving} style={{ flex:1, padding:12, borderRadius:9, background:'var(--primary)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600, opacity:saving?0.7:1 }}>
+                  {saving ? 'Saving…' : modal==='create' ? 'Create Team' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Manage Members Modal ─────────────────────────────────── */}
+      {modal === 'members' && active && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }} onClick={e=>e.target===e.currentTarget&&closeModal()}>
+          <div style={{ width:520, background:'var(--surface)', borderRadius:16, padding:0, maxHeight:'88vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+
+            {/* Modal header */}
+            <div style={{ padding:'20px 24px 16px', borderBottom:'1px solid var(--border)' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                <div>
+                  <h2 style={{ fontSize:18, fontWeight:700, margin:0 }}>👥 Manage Members</h2>
+                  <p style={{ fontSize:13, color:'var(--muted)', margin:'3px 0 0' }}>Team: <strong>{active.name}</strong> · {(teamDetail?.members||[]).length} members</p>
+                </div>
+                <button onClick={closeModal} style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'var(--muted)', lineHeight:1 }}>✕</button>
+              </div>
+              {err && <div style={{ background:'#FEF2F2', color:'#DC2626', padding:'8px 12px', borderRadius:8, marginTop:10, fontSize:13 }}>{err}</div>}
+            </div>
+
+            <div style={{ flex:1, overflowY:'auto', padding:'16px 24px 20px', display:'flex', flexDirection:'column', gap:20 }}>
+
+              {/* Current members */}
+              <div>
+                <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.5, marginBottom:8 }}>
+                  Current Members ({(teamDetail?.members||[]).length})
+                </div>
+                {(teamDetail?.members||[]).length === 0 ? (
+                  <div style={{ fontSize:13, color:'var(--muted)', fontStyle:'italic' }}>No members yet — add some below.</div>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                    {(teamDetail?.members||[]).map((m: any) => (
+                      <div key={m.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:'var(--bg)', borderRadius:10 }}>
+                        <div style={{ width:34, height:34, borderRadius:'50%', background:'var(--primary)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:12, flexShrink:0 }}>
+                          {m.firstName?.[0]}{m.lastName?.[0]}
+                        </div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:13, fontWeight:600 }}>{m.firstName} {m.lastName}</div>
+                          <div style={{ fontSize:11, color:'var(--muted)' }}>{m.role?.name||m.role}</div>
+                        </div>
+                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                          {active.leaderId === m.id || active.leader?.id === m.id
+                            ? <span style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:'#FFF0F2', color:'var(--primary)', fontWeight:700 }}>👑 Leader</span>
+                            : null}
+                          <button onClick={() => removeMember(m.id)} disabled={saving}
+                            style={{ fontSize:11, padding:'4px 10px', borderRadius:7, border:'1px solid #FCA5A5', background:'transparent', cursor:'pointer', color:'#EF4444', fontWeight:600 }}>
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Add members */}
+              <div>
+                <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.5, marginBottom:8 }}>
+                  Add Members
+                </div>
+                <input
+                  value={memberSearch}
+                  onChange={e => setMemberSearch(e.target.value)}
+                  placeholder="Search by name or Employee ID…"
+                  style={{ ...inputStyle, marginBottom:8 }}
+                />
+                <div style={{ maxHeight:220, overflowY:'auto', border:'1px solid var(--border)', borderRadius:10 }}>
+                  {availableUsers.slice(0, 30).map((u: any) => (
+                    <div key={u.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderBottom:'1px solid var(--border)', background:'transparent' }}>
+                      <div style={{ width:32, height:32, borderRadius:'50%', background:'var(--primary)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:11, fontWeight:700, flexShrink:0 }}>
+                        {u.firstName?.[0]}{u.lastName?.[0]}
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:13, fontWeight:600 }}>{u.firstName} {u.lastName}</div>
+                        <div style={{ fontSize:11, color:'var(--muted)' }}>{u.employeeId} · {u.role?.name||u.role} {u.team?.name ? `· 📦 ${u.team.name}` : ''}</div>
+                      </div>
+                      <button onClick={() => addMember(u.id)} disabled={saving}
+                        style={{ fontSize:11, padding:'5px 12px', borderRadius:7, border:'none', background:'var(--primary)', color:'#fff', cursor:'pointer', fontWeight:600 }}>
+                        + Add
+                      </button>
+                    </div>
+                  ))}
+                  {availableUsers.length === 0 && (
+                    <div style={{ padding:20, textAlign:'center', color:'var(--muted)', fontSize:13 }}>
+                      {memberSearch ? 'No matching employees found' : 'All employees are already members'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding:'14px 24px', borderTop:'1px solid var(--border)' }}>
+              <button onClick={closeModal} style={{ width:'100%', padding:12, borderRadius:9, background:'var(--primary)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600 }}>Done</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
