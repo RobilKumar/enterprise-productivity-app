@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Search, Plus, Filter, Edit2, Trash2, Eye, UserCheck, UserX, RefreshCw } from 'lucide-react';
+import { Search, Plus, Filter, Edit2, Trash2, Eye, UserCheck, UserX, RefreshCw, Hash } from 'lucide-react';
 
 interface User {
   id: string;
@@ -39,6 +39,10 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default function EmployeesPage() {
+  // Detect if the logged-in user is a SUPER_ADMIN
+  const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+  const isSuperAdmin = storedUser?.role === 'SUPER_ADMIN';
+
   const [users, setUsers]       = useState<User[]>([]);
   const [total, setTotal]       = useState(0);
   const [page, setPage]         = useState(1);
@@ -57,6 +61,13 @@ export default function EmployeesPage() {
   });
   const [formError, setFormError] = useState('');
   const [saving, setSaving]     = useState(false);
+
+  // ─── Change Employee ID state ─────────────────────────────────
+  const [idModal, setIdModal]   = useState(false);
+  const [idTarget, setIdTarget] = useState<User | null>(null);
+  const [newEmpId, setNewEmpId] = useState('');
+  const [idError, setIdError]   = useState('');
+  const [idSaving, setIdSaving] = useState(false);
 
   const limit = 20;
 
@@ -118,6 +129,32 @@ export default function EmployeesPage() {
       await axios.put(`/api/v1/users/${u.id}`, { status: newStatus });
       fetchUsers();
     } catch { /* */ }
+  }
+
+  function openChangeId(u: User) {
+    setIdTarget(u);
+    setNewEmpId(u.employeeId);
+    setIdError('');
+    setIdModal(true);
+  }
+
+  async function handleChangeId() {
+    if (!idTarget) return;
+    const trimmed = newEmpId.trim().toUpperCase();
+    if (!trimmed) { setIdError('Employee ID cannot be empty'); return; }
+    if (!/^[A-Z0-9_\-]{1,20}$/.test(trimmed)) {
+      setIdError('Use 1–20 characters: letters, digits, _ or - only');
+      return;
+    }
+    setIdSaving(true);
+    setIdError('');
+    try {
+      await axios.patch(`/api/v1/users/${idTarget.id}/employee-id`, { newEmployeeId: trimmed });
+      setIdModal(false);
+      fetchUsers();
+    } catch (e: any) {
+      setIdError(e.response?.data?.message || 'Failed to update Employee ID');
+    } finally { setIdSaving(false); }
   }
 
   const totalPages = Math.ceil(total / limit);
@@ -213,9 +250,18 @@ export default function EmployeesPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
-                      <button onClick={() => openEdit(u)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
+                      <button onClick={() => openEdit(u)} title="Edit employee" className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
                         <Edit2 size={14} />
                       </button>
+                      {isSuperAdmin && (
+                        <button
+                          onClick={() => openChangeId(u)}
+                          title="Change Employee ID"
+                          className="p-1.5 text-gray-400 hover:text-purple-600 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950 transition-colors"
+                        >
+                          <Hash size={14} />
+                        </button>
+                      )}
                       <button onClick={() => toggleStatus(u)} className={`p-1.5 rounded-lg transition-colors ${u.status === 'ACTIVE' ? 'text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-950'}`}>
                         {u.status === 'ACTIVE' ? <UserX size={14} /> : <UserCheck size={14} />}
                       </button>
@@ -238,6 +284,90 @@ export default function EmployeesPage() {
           </div>
         )}
       </div>
+
+      {/* ── Change Employee ID Modal (SUPER_ADMIN only) ─── */}
+      {idModal && idTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b dark:border-gray-800">
+              <div>
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <Hash size={18} className="text-purple-600" />
+                  Change Employee ID
+                </h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {idTarget.firstName} {idTarget.lastName} &nbsp;·&nbsp; {idTarget.email}
+                </p>
+              </div>
+              <button onClick={() => setIdModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Current ID (read-only) */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Current Employee ID</label>
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                  <Hash size={14} className="text-gray-400" />
+                  <span className="font-mono font-semibold text-gray-700 dark:text-gray-300 tracking-widest">
+                    {idTarget.employeeId}
+                  </span>
+                </div>
+              </div>
+
+              {/* Arrow / divider */}
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
+                <span className="text-xs text-gray-400">change to</span>
+                <div className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
+              </div>
+
+              {/* New ID input */}
+              <div>
+                <label className="block text-xs font-medium mb-1">New Employee ID *</label>
+                <input
+                  className="input font-mono tracking-widest uppercase"
+                  placeholder="e.g. EMP00042"
+                  value={newEmpId}
+                  maxLength={20}
+                  onChange={e => setNewEmpId(e.target.value.toUpperCase())}
+                  onKeyDown={e => e.key === 'Enter' && handleChangeId()}
+                  autoFocus
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  1–20 characters: letters, digits, underscore or dash. Will be stored in uppercase.
+                </p>
+              </div>
+
+              {/* Warning note */}
+              <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2.5 text-xs text-amber-700 dark:text-amber-300">
+                <span className="text-base leading-none mt-0.5">⚠️</span>
+                <span>
+                  The employee will need to use the <strong>new ID</strong> to log in from now on.
+                  Make sure to inform them before saving.
+                </span>
+              </div>
+
+              {idError && (
+                <p className="text-sm text-red-500 bg-red-50 dark:bg-red-950 px-3 py-2 rounded-lg">
+                  {idError}
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 p-6 border-t dark:border-gray-800">
+              <button onClick={() => setIdModal(false)} className="btn-secondary">Cancel</button>
+              <button
+                onClick={handleChangeId}
+                disabled={idSaving || newEmpId.trim() === ''}
+                className="btn-primary flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
+              >
+                {idSaving && <span className="spinner border-white w-4 h-4" />}
+                {idSaving ? 'Saving…' : 'Update Employee ID'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create/Edit Modal */}
       {showModal && (

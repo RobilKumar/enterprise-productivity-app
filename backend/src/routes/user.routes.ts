@@ -6,6 +6,7 @@ import { uploadRateLimiter } from '../middleware/rateLimiter';
 import { AppError }          from '../middleware/errorHandler';
 import { uploadAvatar }      from '../controllers/upload.controller';
 import { withCache, invalidateByPattern, TTL } from '../utils/cache';
+import { createAuditLog }    from '../services/audit.service';
 import bcrypt                from 'bcryptjs';
 import type { AuthRequest }  from '../types';
 
@@ -122,6 +123,54 @@ router.patch('/:id/change-password', selfOrAdmin('id'), async (req: AuthRequest,
     const hash = await bcrypt.hash(newPassword, 12);
     await prisma.user.update({ where: { id: req.params.id }, data: { passwordHash: hash } });
     res.json({ success: true, message: 'Password changed successfully' });
+  } catch (err) { next(err); }
+});
+
+// PATCH /users/:id/employee-id  (SUPER_ADMIN only — change an employee's ID)
+router.patch('/:id/employee-id', authorize('SUPER_ADMIN'), async (req: AuthRequest, res, next) => {
+  try {
+    const { newEmployeeId } = req.body;
+
+    if (!newEmployeeId || typeof newEmployeeId !== 'string') {
+      throw new AppError('newEmployeeId is required', 400);
+    }
+
+    const formatted = newEmployeeId.trim().toUpperCase();
+
+    if (!/^[A-Z0-9_\-]{1,20}$/.test(formatted)) {
+      throw new AppError('Employee ID must be 1–20 alphanumeric characters (letters, digits, _ or -)', 400);
+    }
+
+    // Fetch the target user
+    const existing = await prisma.user.findFirst({ where: { id: req.params.id, deletedAt: null } });
+    if (!existing) throw new AppError('User not found', 404);
+
+    // Ensure the new ID is not already taken (by another user)
+    if (formatted !== existing.employeeId) {
+      const conflict = await prisma.user.findUnique({ where: { employeeId: formatted } });
+      if (conflict) throw new AppError(`Employee ID "${formatted}" is already taken`, 409);
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: req.params.id },
+      data:  { employeeId: formatted, updatedAt: new Date() },
+      select: { id: true, employeeId: true, firstName: true, lastName: true, email: true },
+    });
+
+    await invalidateByPattern('users:list:*');
+    await invalidateByPattern(`user:${req.params.id}:*`);
+
+    await createAuditLog({
+      userId:   req.user!.userId,
+      action:   'UPDATE_EMPLOYEE_ID',
+      entity:   'User',
+      entityId: req.params.id,
+      oldData:  { employeeId: existing.employeeId },
+      newData:  { employeeId: formatted },
+      req,
+    });
+
+    res.json({ success: true, data: updated, message: `Employee ID updated to "${formatted}"` });
   } catch (err) { next(err); }
 });
 
