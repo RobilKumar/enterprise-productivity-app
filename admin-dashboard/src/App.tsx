@@ -131,21 +131,21 @@ const smBtn: React.CSSProperties = {
 
 // ─── Login Page — PG World-Class Design ──────────────────────
 function LoginPage() {
-  const { login }             = useAuth();
-  const [email, setEmail]     = useState('superadmin@company.com');
-  const [pass,  setPass]      = useState('');
-  const [err,   setErr]       = useState('');
-  const [busy,  setBusy]      = useState(false);
-  const [showPw, setShowPw]   = useState(false);
-  const [focused, setFocused] = useState<'email'|'pass'|null>(null);
+  const { login }               = useAuth();
+  const [empId,  setEmpId]      = useState('EMP00001');
+  const [pass,   setPass]       = useState('');
+  const [err,    setErr]        = useState('');
+  const [busy,   setBusy]       = useState(false);
+  const [showPw, setShowPw]     = useState(false);
+  const [focused, setFocused]   = useState<'empId'|'pass'|null>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setErr('');
     try {
-      const { data } = await API.post('/auth/login', { email, password: pass });
+      const { data } = await API.post('/auth/login', { employeeId: empId.trim().toUpperCase(), password: pass });
       login(data.data);
     } catch (ex: any) {
-      setErr(ex.response?.data?.message || 'Invalid email or password. Please try again.');
+      setErr(ex.response?.data?.message || 'Invalid Employee ID or password. Please try again.');
     } finally { setBusy(false); }
   };
 
@@ -157,6 +157,7 @@ function LoginPage() {
     boxShadow: active ? '0 0 0 4px rgba(200,16,46,.10)' : 'none',
     transition:'all .18s cubic-bezier(.4,0,.2,1)',
   });
+
   const fieldInput: React.CSSProperties = {
     flex:1, border:'none', outline:'none', background:'transparent',
     fontSize:15, color:'#111827', fontFamily:'inherit',
@@ -336,20 +337,35 @@ function LoginPage() {
 
           <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:14 }}>
 
-            {/* Email */}
+            {/* Employee ID */}
             <div>
               <label style={{ display:'block', fontSize:10.5, fontWeight:700, color:'#374151',
-                letterSpacing:.7, textTransform:'uppercase', marginBottom:7 }}>Email Address</label>
-              <div style={field(focused === 'email')}>
+                letterSpacing:.7, textTransform:'uppercase', marginBottom:7 }}>Employee ID</label>
+              <div style={field(focused === 'empId')}>
+                {/* Badge / ID card icon */}
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24"
-                  stroke={focused === 'email' ? '#C8102E' : '#9CA3AF'} strokeWidth="2">
-                  <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                  stroke={focused === 'empId' ? '#C8102E' : '#9CA3AF'} strokeWidth="2">
+                  <rect x="2" y="5" width="20" height="14" rx="2"/>
+                  <circle cx="9" cy="12" r="2.5"/>
+                  <path d="M13 10h4M13 14h3"/>
                 </svg>
-                <input value={email} onChange={e => setEmail(e.target.value)}
-                  onFocus={() => setFocused('email')} onBlur={() => setFocused(null)}
-                  type="email" required placeholder="you@company.com" style={fieldInput}
-                  autoCapitalize="none" autoCorrect="off" inputMode="email" />
+                <input
+                  value={empId}
+                  onChange={e => setEmpId(e.target.value.toUpperCase())}
+                  onFocus={() => setFocused('empId')}
+                  onBlur={() => setFocused(null)}
+                  type="text"
+                  required
+                  placeholder="e.g. EMP00001"
+                  style={{ ...fieldInput, textTransform:'uppercase', letterSpacing:1, fontWeight:600 }}
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
+                />
               </div>
+              <p style={{ fontSize:10.5, color:'#9CA3AF', margin:'5px 0 0 2px' }}>
+                Your Employee ID is assigned by your administrator
+              </p>
             </div>
 
             {/* Password */}
@@ -451,14 +467,18 @@ function LoginPage() {
             background:'linear-gradient(135deg, #F9FAFB, #F3F4F6)',
             border:'1.5px dashed #D1D5DB',
           }}>
-            <div style={{ fontSize:10, fontWeight:800, color:'#9CA3AF', marginBottom:5,
+            <div style={{ fontSize:10, fontWeight:800, color:'#9CA3AF', marginBottom:8,
               textTransform:'uppercase', letterSpacing:.8, display:'flex', alignItems:'center', gap:5 }}>
               <span>🧪</span> Demo Credentials
             </div>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div style={{ fontSize:12, color:'#374151', fontFamily:'monospace', lineHeight:1.8 }}>
-                superadmin@company.com<br/>
+              <div style={{ fontSize:12, color:'#374151', fontFamily:'monospace', lineHeight:2 }}>
+                <span style={{ background:'#EFF6FF', color:'#1D4ED8', padding:'2px 8px',
+                  borderRadius:6, fontWeight:700, border:'1px solid #BFDBFE' }}>EMP00001</span>
+                <span style={{ color:'#9CA3AF', fontSize:11, marginLeft:6 }}>← Employee ID</span>
+                <br/>
                 <span style={{ color:'#C8102E', fontWeight:700 }}>Admin@123456</span>
+                <span style={{ color:'#9CA3AF', fontSize:11, marginLeft:6 }}>← Password</span>
               </div>
               <div style={{ fontSize:20 }}>🔑</div>
             </div>

@@ -54,7 +54,7 @@ export function EmployeesPage() {
   const [saving,  setSaving]  = useState(false);
   const [errMsg,  setErrMsg]  = useState('');
 
-  const EMPTY_FORM = { firstName: '', lastName: '', email: '', phone: '', password: '', roleId: '', departmentId: '', teamId: '', reportingManagerId: '' };
+  const EMPTY_FORM = { firstName: '', lastName: '', email: '', phone: '', password: '', roleId: '', departmentId: '', teamId: '', reportingManagerId: '', employeeId: '' };
   const [form, setForm] = useState(EMPTY_FORM);
 
   const LIMIT = 20;
@@ -100,6 +100,7 @@ export function EmployeesPage() {
       departmentId:       u.department?.id || '',
       teamId:             u.team?.id  || '',
       reportingManagerId: u.reportingManagerId || '',
+      employeeId:         u.employeeId || '',
     });
     setErrMsg('');
     setModal('edit');
@@ -122,6 +123,7 @@ export function EmployeesPage() {
         if (form.phone)        payload.phone        = form.phone;
         if (form.departmentId) payload.departmentId = form.departmentId;
         if (form.teamId)       payload.teamId       = form.teamId;
+        if (form.employeeId)   payload.employeeId   = form.employeeId.trim().toUpperCase();
         const res = await API.post('/auth/register', payload);
         // extract new user id from response (various response shapes)
         savedId = res.data?.data?.user?.id || res.data?.data?.id || res.data?.user?.id || null;
@@ -283,6 +285,26 @@ export function EmployeesPage() {
       {/* ── Add / Edit Modal ──────────────────────────────────── */}
       {(modal === 'add' || modal === 'edit') && (
         <Modal title={modal === 'add' ? 'Add New Employee' : `Edit — ${target?.firstName} ${target?.lastName}`} onClose={() => setModal(null)}>
+          {/* Employee ID — only for new employees */}
+          {modal === 'add' && (
+            <div style={{ marginBottom: 14, padding: '12px 14px', borderRadius: 10,
+              background: 'linear-gradient(135deg,#EFF6FF,#DBEAFE)', border: '1.5px solid #BFDBFE' }}>
+              <label style={{ ...labelSt, color: '#1D4ED8' }}>
+                🪪 Employee ID (Login ID) *
+              </label>
+              <input
+                style={{ ...inputSt, fontFamily:'monospace', fontWeight:700, letterSpacing:1,
+                  textTransform:'uppercase', color:'#1D4ED8' }}
+                value={form.employeeId}
+                onChange={e => f('employeeId', e.target.value.toUpperCase())}
+                placeholder="e.g. EMP00010 or PGT001"
+              />
+              <div style={{ fontSize: 11, color: '#3B82F6', marginTop: 5 }}>
+                ℹ️ This will be the employee's <strong>login ID</strong>. Leave blank to auto-generate (EMP00001, EMP00002…)
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 14 }}>
             <div>
               <label style={labelSt}>First Name *</label>
@@ -364,7 +386,7 @@ export function EmployeesPage() {
       {/* ── View Detail Modal ─────────────────────────────────── */}
       {modal === 'view' && target && (
         <Modal title="Employee Details" onClose={() => setModal(null)} width={440}>
-          <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
             <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 20, flexShrink: 0 }}>
               {target.firstName?.[0]}{target.lastName?.[0]}
             </div>
@@ -373,6 +395,22 @@ export function EmployeesPage() {
               <div style={{ color: 'var(--muted)', fontSize: 13 }}>{target.email}</div>
             </div>
           </div>
+
+          {/* Login ID callout */}
+          <div style={{ padding: '12px 14px', borderRadius: 10, marginBottom: 16,
+            background: 'linear-gradient(135deg,#EFF6FF,#DBEAFE)', border: '1.5px solid #BFDBFE',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: '#3B82F6', letterSpacing: .8,
+                textTransform: 'uppercase', marginBottom: 4 }}>🪪 Login ID (Employee ID)</div>
+              <div style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 900,
+                color: '#1D4ED8', letterSpacing: 2 }}>{target.employeeId}</div>
+            </div>
+            <div style={{ fontSize: 10, color: '#3B82F6', textAlign: 'right', maxWidth: 120, lineHeight: 1.5 }}>
+              Employee uses this ID to sign in to the app
+            </div>
+          </div>
+
           {[
             ['Employee ID', target.employeeId],
             ['Role',        target.role?.displayName || target.role?.name],

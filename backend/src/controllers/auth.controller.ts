@@ -13,8 +13,8 @@ import type { AuthRequest } from '../types';
 
 // ─── Zod Schemas ─────────────────────────────────────────────
 const LoginSchema = z.object({
-  email:    z.string().email(),
-  password: z.string().min(6),
+  employeeId: z.string().min(1, 'Employee ID is required'),
+  password:   z.string().min(6),
 });
 
 const RegisterSchema = z.object({
@@ -27,6 +27,8 @@ const RegisterSchema = z.object({
   roleId:       z.string().uuid(),
   departmentId: z.string().uuid().optional(),
   teamId:       z.string().uuid().optional(),
+  // Super admin can supply a custom Employee ID; if omitted, one is auto-generated
+  employeeId:   z.string().min(1).max(20).optional(),
 });
 
 const RefreshSchema = z.object({ refreshToken: z.string() });
@@ -55,15 +57,16 @@ function signRefreshToken(payload: Record<string, unknown>): string {
 // ─── Login ───────────────────────────────────────────────────
 export async function login(req: Request, res: Response, next: NextFunction) {
   try {
-    const { email, password } = LoginSchema.parse(req.body);
+    const { employeeId, password } = LoginSchema.parse(req.body);
 
+    // Look up by employeeId (case-insensitive, trimmed)
     const user = await prisma.user.findFirst({
-      where: { email, deletedAt: null },
+      where: { employeeId: { equals: employeeId.trim().toUpperCase(), mode: 'insensitive' }, deletedAt: null },
       include: { role: true },
     });
 
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      throw new AppError('Invalid email or password', 401);
+      throw new AppError('Invalid Employee ID or password', 401);
     }
 
     if (user.status === 'SUSPENDED') {
@@ -330,9 +333,16 @@ export async function register(req: AuthRequest, res: Response, next: NextFuncti
 
     const hash = await bcrypt.hash(body.password, 12);
 
-    // Auto-generate employee ID
-    const count = await prisma.user.count();
-    const employeeId = `EMP${String(count + 1).padStart(5, '0')}`;
+    // Use supplied Employee ID or auto-generate one
+    let employeeId = body.employeeId?.trim().toUpperCase();
+    if (!employeeId) {
+      const count = await prisma.user.count();
+      employeeId = `EMP${String(count + 1).padStart(5, '0')}`;
+    } else {
+      // Ensure uniqueness of custom ID
+      const idExists = await prisma.user.findUnique({ where: { employeeId } });
+      if (idExists) throw new AppError(`Employee ID "${employeeId}" is already taken`, 409);
+    }
 
     // Destructure to exclude 'password' — Prisma model has passwordHash, not password
     const { password: _pw, ...userFields } = body;
