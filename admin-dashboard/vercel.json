@@ -2,7 +2,18 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": null,
+  "env": {
+    "VITE_API_URL": "https://ep-backend-2hba.onrender.com/api/v1"
+  },
   "rewrites": [
+    {
+      "source": "/api/v1/:path*",
+      "destination": "https://ep-backend-2hba.onrender.com/api/v1/:path*"
+    },
+    {
+      "source": "/socket.io/:path*",
+      "destination": "https://ep-backend-2hba.onrender.com/socket.io/:path*"
+    },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [

@@ -52,10 +52,24 @@ const server = http.createServer(app);
 // Trust the first proxy (nginx) — required for X-Forwarded-For and rate limiting
 app.set('trust proxy', 1);
 
+// ─── CORS origin list (defined early — shared by both http and socket.io) ────
+const ALLOWED_ORIGINS: string[] = (
+  process.env.FRONTEND_URL || 'http://localhost:3000'
+).split(',').map(s => s.trim());
+
+function isAllowedOrigin(origin: string | undefined): boolean {
+  if (!origin) return true;                                          // no-origin requests (mobile/curl)
+  if (ALLOWED_ORIGINS.includes(origin)) return true;                // exact match
+  if (/^https:\/\/enterprise-productivity-admin(-[a-z0-9]+)*(\.vercel\.app)$/.test(origin)) return true;  // any Vercel preview
+  if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return true;   // local dev
+  if (origin === 'capacitor://localhost' || origin === 'ionic://localhost') return true; // native apps
+  return false;
+}
+
 // ─── Socket.IO ──────────────────────────────────────────────
 export const io = new SocketIOServer(server, {
   cors: {
-    origin:      process.env.FRONTEND_URL?.split(',') || ['http://localhost:3000'],
+    origin: (origin, callback) => isAllowedOrigin(origin) ? callback(null, true) : callback(new Error(`CORS: origin not allowed — ${origin}`)),
     credentials: true,
   },
   pingTimeout:  60000,
@@ -67,7 +81,12 @@ setGlobalIO(io);
 // ─── Middleware ──────────────────────────────────────────────
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' }, contentSecurityPolicy: false }));
 app.use(compression());
-app.use(cors({ origin: process.env.FRONTEND_URL?.split(',') || 'http://localhost:3000', credentials: true, methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'] }));
+
+app.use(cors({
+  origin: (origin, callback) => isAllowedOrigin(origin) ? callback(null, true) : callback(new Error(`CORS: origin not allowed — ${origin}`)),
+  credentials: true,
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('combined', { stream: { write: msg => logger.http(msg.trim()) } }));
