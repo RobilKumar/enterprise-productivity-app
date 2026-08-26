@@ -7,8 +7,32 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../config/database';
 import { logger } from './logger';
 
+// Emails of the 6 seeded users that must always be kept
+const SEEDED_EMAILS = [
+  'superadmin@company.com',
+  'alice@company.com',
+  'bob@company.com',
+  'charlie@company.com',
+  'diana@company.com',
+  'evan@company.com',
+];
+
+/** Soft-delete any users that were not part of the initial seed (e.g. bulk-uploaded test users). */
+export async function cleanupExtraUsers(): Promise<void> {
+  const deleted = await prisma.user.updateMany({
+    where: {
+      email:     { notIn: SEEDED_EMAILS },
+      deletedAt: null,
+    },
+    data: { deletedAt: new Date() },
+  });
+  if (deleted.count > 0) {
+    logger.info(`Cleanup: soft-deleted ${deleted.count} non-seeded user(s)`);
+  }
+}
+
 export async function autoSeedIfEmpty(): Promise<void> {
-  const userCount = await prisma.user.count();
+  const userCount = await prisma.user.count({ where: { deletedAt: null } });
   if (userCount > 0) {
     logger.info(`Auto-seed skipped — ${userCount} users already exist`);
     return;
@@ -56,7 +80,7 @@ export async function autoSeedIfEmpty(): Promise<void> {
       firstName:    'Super',
       lastName:     'Admin',
       email:        'superadmin@company.com',
-      passwordHash: await bcrypt.hash('Admin@123456', 12),
+      passwordHash: await bcrypt.hash('Admin@123456', 10),
       roleId:       superAdminRole.id,
       departmentId: engDept.id,
       status:       'ACTIVE',
@@ -87,7 +111,7 @@ export async function autoSeedIfEmpty(): Promise<void> {
     { emp: 'EMP00006', email: 'evan@company.com',    firstName: 'Evan',    lastName: 'Martinez', roleId: empRole.id,    teamId: engTeam.id,     deptId: engDept.id },
   ];
 
-  const pw = await bcrypt.hash('Password@123', 12);
+  const pw = await bcrypt.hash('Password@123', 10);
   for (const e of employees) {
     await prisma.user.upsert({
       where:  { email: e.email },

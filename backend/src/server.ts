@@ -21,7 +21,7 @@ import { initSocketHandlers } from './sockets';
 import { startCronJobs }      from './jobs';
 import { setIO }              from './services/notification.service';
 import { setGlobalIO }        from './utils/socketHelper';
-import { autoSeedIfEmpty }    from './utils/autoSeed';
+import { autoSeedIfEmpty, cleanupExtraUsers } from './utils/autoSeed';
 
 import authRoutes          from './routes/auth.routes';
 import roleRoutes          from './routes/role.routes';
@@ -137,6 +137,7 @@ async function bootstrap() {
     await initMinIO();
     await initFirebaseAdmin();
     await autoSeedIfEmpty();
+    await cleanupExtraUsers();
     initSocketHandlers(io);
     startCronJobs();
     const PORT = Number(process.env.PORT) || 5000;

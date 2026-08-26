@@ -120,7 +120,7 @@ router.patch('/:id/change-password', selfOrAdmin('id'), async (req: AuthRequest,
       if (!valid) throw new AppError('Current password incorrect', 400);
     }
 
-    const hash = await bcrypt.hash(newPassword, 12);
+    const hash = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({ where: { id: req.params.id }, data: { passwordHash: hash } });
     res.json({ success: true, message: 'Password changed successfully' });
   } catch (err) { next(err); }

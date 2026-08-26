@@ -65,8 +65,15 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       include: { role: true },
     });
 
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    const passwordMatch = user ? await bcrypt.compare(password, user.passwordHash) : false;
+    if (!user || !passwordMatch) {
       throw new AppError('Invalid Employee ID or password', 401);
+    }
+
+    // Re-hash with lower rounds if stored hash was generated with cost > 10 (saves time on future logins)
+    if (bcrypt.getRounds(user.passwordHash) > 10) {
+      const newHash = await bcrypt.hash(password, 10);
+      await prisma.user.update({ where: { id: user.id }, data: { passwordHash: newHash } });
     }
 
     if (user.status === 'SUSPENDED') {
@@ -303,7 +310,7 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
 
     if (payload.purpose !== 'password_reset') throw new AppError('Invalid token purpose', 400);
 
-    const hash = await bcrypt.hash(newPassword, 12);
+    const hash = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({
       where: { id: payload.userId },
       data:  { passwordHash: hash },
@@ -331,7 +338,7 @@ export async function register(req: AuthRequest, res: Response, next: NextFuncti
     const exists = await prisma.user.findUnique({ where: { email: body.email } });
     if (exists) throw new AppError('Email already registered', 409);
 
-    const hash = await bcrypt.hash(body.password, 12);
+    const hash = await bcrypt.hash(body.password, 10);
 
     // Use supplied Employee ID or auto-generate one
     let employeeId = body.employeeId?.trim().toUpperCase();
