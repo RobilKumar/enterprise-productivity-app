@@ -33,9 +33,9 @@ export function LoginScreen() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <View style={[styles.logoBox, { backgroundColor: colors.primary }]}>
-            <Text style={styles.logoText}>EP</Text>
+            <Text style={styles.logoText}>PG</Text>
           </View>
-          <Text style={[styles.title, { color: colors.text }]}>Enterprise Productivity</Text>
+          <Text style={[styles.title, { color: colors.text }]}>PG Technoplast</Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>Sign in to your account</Text>
         </View>
 
@@ -47,12 +47,12 @@ export function LoginScreen() {
             </View>
           )}
 
-          <Text style={[styles.label, { color: colors.textMuted }]}>Email Address</Text>
+          <Text style={[styles.label, { color: colors.textMuted }]}>Employee ID</Text>
           <TextInput
             style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
             value={email} onChangeText={setEmail}
-            placeholder="you@company.com" placeholderTextColor={colors.textMuted}
-            autoCapitalize="none" keyboardType="email-address" autoComplete="email"
+            placeholder="e.g. EMP00001" placeholderTextColor={colors.textMuted}
+            autoCapitalize="characters" autoComplete="off"
           />
 
           <Text style={[styles.label, { color: colors.textMuted }]}>Password</Text>
@@ -68,10 +68,6 @@ export function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.forgotBtn}>
-            <Text style={[styles.forgotText, { color: colors.primary }]}>Forgot Password?</Text>
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={[styles.loginBtn, { backgroundColor: colors.primary }, loading && styles.loginBtnDisabled]}
             onPress={handleLogin} disabled={loading}
@@ -80,8 +76,15 @@ export function LoginScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Team motto */}
+        <View style={styles.mottoBox}>
+          <Text style={styles.mottoTeam}>IT Team</Text>
+          <View style={styles.mottoDivider} />
+          <Text style={styles.mottoText}>One Team  ·  One Dream  ·  One Goal</Text>
+        </View>
+
         <Text style={[styles.footer, { color: colors.textMuted }]}>
-          © {new Date().getFullYear()} Enterprise Productivity. All rights reserved.
+          © {new Date().getFullYear()} PG Technoplast Ltd. All rights reserved.
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -109,7 +112,13 @@ const styles = StyleSheet.create({
   loginBtn:        { borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 20, height: 52, justifyContent: 'center' },
   loginBtnDisabled:{ opacity: 0.7 },
   loginBtnText:    { color: '#fff', fontWeight: '700', fontSize: 16 },
-  footer:          { textAlign: 'center', fontSize: 12 },
+  mottoBox:        { alignItems: 'center', marginBottom: 20, paddingHorizontal: 24, paddingVertical: 14,
+                     borderRadius: 14, backgroundColor: '#FFF0F2', borderWidth: 1.5, borderColor: '#FECDD3' },
+  mottoTeam:       { fontSize: 11, fontWeight: '800', color: '#C8102E', letterSpacing: 1.4,
+                     textTransform: 'uppercase', marginBottom: 6 },
+  mottoDivider:    { width: 32, height: 2, backgroundColor: '#C8102E', borderRadius: 2, marginBottom: 8 },
+  mottoText:       { fontSize: 13, fontWeight: '600', color: '#374151', letterSpacing: 0.3 },
+  footer:          { textAlign: 'center', fontSize: 12, marginBottom: 8 },
 });
 
 // ════════════════════════════════════════════════════════════

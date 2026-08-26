@@ -461,26 +461,21 @@ function LoginPage() {
             ))}
           </div>
 
-          {/* Demo credentials */}
+          {/* Team motto */}
           <div style={{
-            padding:'12px 14px', borderRadius:12,
-            background:'linear-gradient(135deg, #F9FAFB, #F3F4F6)',
-            border:'1.5px dashed #D1D5DB',
+            padding:'14px 18px', borderRadius:14,
+            background:'linear-gradient(135deg, #FFF0F2 0%, #FFF5F0 100%)',
+            border:'1.5px solid #FECDD3',
+            textAlign:'center',
           }}>
-            <div style={{ fontSize:10, fontWeight:800, color:'#9CA3AF', marginBottom:8,
-              textTransform:'uppercase', letterSpacing:.8, display:'flex', alignItems:'center', gap:5 }}>
-              <span>🧪</span> Demo Credentials
+            <div style={{ fontSize:11, fontWeight:800, color:'#C8102E', letterSpacing:1.2,
+              textTransform:'uppercase', marginBottom:6 }}>
+              IT Team
             </div>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div style={{ fontSize:12, color:'#374151', fontFamily:'monospace', lineHeight:2 }}>
-                <span style={{ background:'#EFF6FF', color:'#1D4ED8', padding:'2px 8px',
-                  borderRadius:6, fontWeight:700, border:'1px solid #BFDBFE' }}>EMP00001</span>
-                <span style={{ color:'#9CA3AF', fontSize:11, marginLeft:6 }}>← Employee ID</span>
-                <br/>
-                <span style={{ color:'#C8102E', fontWeight:700 }}>Admin@123456</span>
-                <span style={{ color:'#9CA3AF', fontSize:11, marginLeft:6 }}>← Password</span>
-              </div>
-              <div style={{ fontSize:20 }}>🔑</div>
+            <div style={{ width:32, height:2, background:'linear-gradient(90deg,#C8102E,#FF6B35)',
+              borderRadius:2, margin:'0 auto 8px' }} />
+            <div style={{ fontSize:13, fontWeight:600, color:'#374151', letterSpacing:.3, lineHeight:1.5 }}>
+              One Team &nbsp;·&nbsp; One Dream &nbsp;·&nbsp; One Goal
             </div>
           </div>
         </div>
