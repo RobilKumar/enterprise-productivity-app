@@ -148,6 +148,10 @@ export const userAPI = {
   getOne:      (id: string)         => apiService.get(`/users/${id}`),
   update:      (id: string, body: any) => apiService.put(`/users/${id}`, body),
   changePassword: (id: string, body: any) => apiService.patch(`/users/${id}/change-password`, body),
+  bulkUpload:     (formData: FormData)    => apiService.post('/users/bulk-upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
+  }),
 };
 
 export const timerAPI = {

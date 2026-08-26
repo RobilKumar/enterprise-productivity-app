@@ -58,6 +58,21 @@ export function EmployeesPage() {
   const [saving,  setSaving]  = useState(false);
   const [errMsg,  setErrMsg]  = useState('');
 
+  // bulk upload state
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkFile,      setBulkFile]      = useState<File | null>(null);
+  const [bulkResult,    setBulkResult]    = useState<any>(null);
+  const [bulkLoading,   setBulkLoading]   = useState(false);
+  const [bulkErr,       setBulkErr]       = useState('');
+
+  // password reset state
+  const [showPwModal, setShowPwModal] = useState(false);
+  const [pwTarget,    setPwTarget]    = useState<any>(null);
+  const [newPw,       setNewPw]       = useState('');
+  const [pwLoading,   setPwLoading]   = useState(false);
+  const [pwErr,       setPwErr]       = useState('');
+  const [pwOk,        setPwOk]        = useState(false);
+
   const EMPTY_FORM = { firstName: '', lastName: '', email: '', phone: '', password: '', roleId: '', departmentId: '', teamId: '', reportingManagerId: '', employeeId: '' };
   const [form, setForm] = useState(EMPTY_FORM);
 
@@ -180,6 +195,48 @@ export function EmployeesPage() {
     } catch {}
   }
 
+  async function downloadTemplate() {
+    try {
+      const res = await API.get('/users/bulk-upload/template', { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url; a.download = 'employee-bulk-upload-template.xlsx'; a.click();
+      URL.revokeObjectURL(url);
+    } catch { alert('Could not download template.'); }
+  }
+
+  async function submitBulkUpload() {
+    if (!bulkFile) return;
+    setBulkLoading(true); setBulkErr(''); setBulkResult(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', bulkFile);
+      const { data } = await API.post('/users/bulk-upload', fd);
+      setBulkResult(data.data);
+      setBulkFile(null);
+      load();
+    } catch (e: any) {
+      setBulkErr(e.response?.data?.message || 'Upload failed. Check the file and try again.');
+    }
+    setBulkLoading(false);
+  }
+
+  function openPwModal(u: any) {
+    setPwTarget(u); setNewPw(''); setPwErr(''); setPwOk(false); setShowPwModal(true);
+  }
+
+  async function submitPwChange() {
+    if (!newPw || newPw.length < 8) { setPwErr('Password must be at least 8 characters'); return; }
+    setPwLoading(true); setPwErr(''); setPwOk(false);
+    try {
+      await API.patch(`/users/${pwTarget.id}/change-password`, { newPassword: newPw });
+      setPwOk(true); setNewPw('');
+    } catch (e: any) {
+      setPwErr(e.response?.data?.message || 'Failed to change password');
+    }
+    setPwLoading(false);
+  }
+
   const f = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
@@ -191,7 +248,13 @@ export function EmployeesPage() {
           <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Employee Management</h1>
           <p style={{ color: 'var(--muted)', fontSize: 13 }}>{total} total employees</p>
         </div>
-        <button onClick={openAdd} style={btnPrimary}>+ Add Employee</button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={() => { setBulkFile(null); setBulkResult(null); setBulkErr(''); setShowBulkModal(true); }}
+            style={{ ...btnSecondary, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            📊 Bulk Upload
+          </button>
+          <button onClick={openAdd} style={btnPrimary}>+ Add Employee</button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -397,11 +460,21 @@ export function EmployeesPage() {
           </div>
 
           {errMsg && <p style={{ color: '#DC2626', background: '#FEF2F2', padding: '8px 12px', borderRadius: 8, fontSize: 13, marginTop: 14 }}>{errMsg}</p>}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-            <button onClick={() => setModal(null)} style={btnSecondary}>Cancel</button>
-            <button onClick={handleSave} disabled={saving} style={{ ...btnPrimary, opacity: saving ? 0.7 : 1 }}>
-              {saving ? 'Saving…' : modal === 'add' ? 'Create Employee' : 'Save Changes'}
-            </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 20 }}>
+            <div>
+              {modal === 'edit' && canChangeId && (
+                <button onClick={() => { setModal(null); openPwModal(target); }}
+                  style={{ ...btnSecondary, color: '#7C3AED', borderColor: '#C4B5FD' }}>
+                  🔑 Reset Password
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setModal(null)} style={btnSecondary}>Cancel</button>
+              <button onClick={handleSave} disabled={saving} style={{ ...btnPrimary, opacity: saving ? 0.7 : 1 }}>
+                {saving ? 'Saving…' : modal === 'add' ? 'Create Employee' : 'Save Changes'}
+              </button>
+            </div>
           </div>
         </Modal>
       )}
@@ -453,11 +526,98 @@ export function EmployeesPage() {
               <span style={{ fontWeight: 500 }}>{v}</span>
             </div>
           ))}
-          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+          <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
             <button onClick={() => openEdit(target)} style={{ ...btnPrimary, flex: 1 }}>✏️ Edit</button>
             <button onClick={() => { toggleStatus(target); setModal(null); }}
               style={{ ...btnSecondary, flex: 1, color: target.status === 'ACTIVE' ? '#DC2626' : '#059669' }}>
               {target.status === 'ACTIVE' ? '🚫 Suspend' : '✅ Activate'}
+            </button>
+            {canChangeId && (
+              <button onClick={() => { setModal(null); openPwModal(target); }}
+                style={{ ...btnSecondary, width: '100%', color: '#7C3AED', borderColor: '#C4B5FD' }}>
+                🔑 Reset Password
+              </button>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {/* ── Bulk Upload Modal ─────────────────────────────────── */}
+      {showBulkModal && (
+        <Modal title="📊 Bulk Upload Employees" onClose={() => setShowBulkModal(false)} width={560}>
+          <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 10, background: '#F0FDF4', border: '1.5px solid #BBF7D0' }}>
+            <p style={{ fontSize: 13, color: '#065F46', margin: 0 }}>
+              Upload an Excel file (.xlsx) to create multiple employees at once. All created employees will receive a default password shown after upload.
+            </p>
+          </div>
+          <button onClick={downloadTemplate}
+            style={{ ...btnSecondary, marginBottom: 16, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            ⬇️ Download Template
+          </button>
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelSt}>Select Excel File (.xlsx)</label>
+            <input type="file" accept=".xlsx,.xls"
+              onChange={e => { setBulkFile(e.target.files?.[0] || null); setBulkResult(null); setBulkErr(''); }}
+              style={{ ...inputSt, padding: '7px 10px' }} />
+          </div>
+          {bulkErr && <p style={{ color: '#DC2626', background: '#FEF2F2', padding: '8px 12px', borderRadius: 8, fontSize: 13, marginBottom: 12 }}>{bulkErr}</p>}
+          {bulkResult && (
+            <div style={{ marginBottom: 14, padding: '14px', borderRadius: 10, background: '#F0FDF4', border: '1.5px solid #BBF7D0' }}>
+              <div style={{ fontWeight: 700, color: '#065F46', marginBottom: 8 }}>✅ Upload Complete</div>
+              <div style={{ display: 'flex', gap: 20, marginBottom: 8 }}>
+                <div><span style={{ fontWeight: 700, color: '#059669' }}>{bulkResult.summary?.created ?? 0}</span> <span style={{ fontSize: 12, color: '#065F46' }}>Created</span></div>
+                <div><span style={{ fontWeight: 700, color: '#DC2626' }}>{bulkResult.summary?.failed ?? 0}</span> <span style={{ fontSize: 12, color: '#065F46' }}>Failed</span></div>
+                <div><span style={{ fontWeight: 700 }}>{bulkResult.summary?.total ?? 0}</span> <span style={{ fontSize: 12, color: '#065F46' }}>Total Rows</span></div>
+              </div>
+              {bulkResult.defaultPassword && (
+                <div style={{ padding: '8px 12px', borderRadius: 8, background: '#DBEAFE', border: '1px solid #BFDBFE', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: '#1D4ED8' }}>🔑 Default Password: </span>
+                  <strong style={{ fontFamily: 'monospace', color: '#1D4ED8' }}>{bulkResult.defaultPassword}</strong>
+                </div>
+              )}
+              {bulkResult.results?.filter((r: any) => r.status === 'failed').length > 0 && (
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#DC2626', marginBottom: 4 }}>Failed rows:</div>
+                  {bulkResult.results.filter((r: any) => r.status === 'failed').slice(0, 10).map((r: any, i: number) => (
+                    <div key={i} style={{ fontSize: 11, color: '#DC2626', marginBottom: 2 }}>
+                      Row {r.row}: {r.email} — {r.error}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+            <button onClick={() => setShowBulkModal(false)} style={btnSecondary}>Close</button>
+            <button onClick={submitBulkUpload} disabled={!bulkFile || bulkLoading}
+              style={{ ...btnPrimary, opacity: !bulkFile || bulkLoading ? 0.6 : 1 }}>
+              {bulkLoading ? 'Uploading…' : '📤 Upload'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── Password Reset Modal ──────────────────────────────── */}
+      {showPwModal && pwTarget && (
+        <Modal title={`🔑 Reset Password — ${pwTarget.firstName} ${pwTarget.lastName}`} onClose={() => setShowPwModal(false)} width={420}>
+          <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 8, background: '#FFF7ED', border: '1px solid #FED7AA' }}>
+            <p style={{ fontSize: 12, color: '#92400E', margin: 0 }}>
+              As a Super Admin / Admin, you can set a new password for this employee. The employee will need to use the new password on their next login.
+            </p>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelSt}>New Password (min 8 characters)</label>
+            <input type="password" style={inputSt} value={newPw}
+              onChange={e => { setNewPw(e.target.value); setPwErr(''); setPwOk(false); }}
+              placeholder="Enter new password" />
+          </div>
+          {pwErr && <p style={{ color: '#DC2626', background: '#FEF2F2', padding: '8px 12px', borderRadius: 8, fontSize: 13, marginBottom: 12 }}>{pwErr}</p>}
+          {pwOk && <p style={{ color: '#059669', background: '#F0FDF4', padding: '8px 12px', borderRadius: 8, fontSize: 13, marginBottom: 12 }}>✅ Password changed successfully!</p>}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+            <button onClick={() => setShowPwModal(false)} style={btnSecondary}>Close</button>
+            <button onClick={submitPwChange} disabled={pwLoading || pwOk}
+              style={{ ...btnPrimary, opacity: pwLoading || pwOk ? 0.7 : 1, background: '#7C3AED' }}>
+              {pwLoading ? 'Saving…' : '🔑 Set Password'}
             </button>
           </div>
         </Modal>

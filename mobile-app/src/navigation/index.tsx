@@ -9,11 +9,12 @@ import type { RootState }             from '../store';
 import { useTheme }                   from '../hooks/useTheme';
 
 // ─── Screens (lazy imports) ──────────────────────────────────
-import { LoginScreen }      from './screens/index';
-import { DashboardScreen }  from './screens/index';
-import { TasksScreen }      from './screens/index';
-import { TaskDetailScreen } from './screens/detail';
-import { TimerScreen }      from './screens/detail';
+import { LoginScreen }      from '../screens/index';
+import { DashboardScreen }  from '../screens/index';
+import { TasksScreen }      from '../screens/index';
+import { TaskDetailScreen } from '../screens/detail';
+import { TimerScreen }      from '../screens/detail';
+import { BulkUploadScreen } from '../screens/BulkUploadScreen';
 
 // Placeholder screens
 const Placeholder = (name: string) => () => (
@@ -92,9 +93,13 @@ function TasksStack() {
   );
 }
 
+const MANAGEMENT_ROLES = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'TEAM_LEADER'];
+
 // ─── Drawer (full menu) ───────────────────────────────────────
 function AppDrawer() {
-  const { colors } = useTheme();
+  const { colors }  = useTheme();
+  const { user }    = useSelector((s: RootState) => s.auth);
+  const isManagement = MANAGEMENT_ROLES.includes(user?.role || '');
 
   return (
     <Drawer.Navigator
@@ -112,6 +117,13 @@ function AppDrawer() {
       <Drawer.Screen name="Leaderboard"   component={LeaderboardScreen} options={{ drawerLabel: '🏆  Leaderboard' }} />
       <Drawer.Screen name="DailySummary"  component={SummaryScreen}     options={{ drawerLabel: '📝  Daily Summary' }} />
       <Drawer.Screen name="Shifts"        component={ShiftScreen}       options={{ drawerLabel: '🕐  Shifts' }} />
+      {isManagement && (
+        <Drawer.Screen
+          name="BulkUpload"
+          component={BulkUploadScreen}
+          options={{ drawerLabel: '📊  Bulk Upload Employees', title: 'Bulk Upload Employees' }}
+        />
+      )}
       <Drawer.Screen name="Settings"      component={SettingsScreen}    options={{ drawerLabel: '⚙️  Settings' }} />
     </Drawer.Navigator>
   );
