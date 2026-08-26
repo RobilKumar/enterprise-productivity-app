@@ -1,5 +1,6 @@
 import { Router }  from 'express';
 import multer       from 'multer';
+import * as XLSX    from 'xlsx';
 import { prisma }   from '../config/database';
 import { authenticate, authorize, MANAGEMENT_ROLES, selfOrAdmin } from '../middleware/auth.middleware';
 import { uploadRateLimiter } from '../middleware/rateLimiter';
@@ -11,7 +12,7 @@ import bcrypt                from 'bcryptjs';
 import type { AuthRequest }  from '../types';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.use(authenticate);
 
@@ -69,6 +70,131 @@ router.get('/', authorize(...MANAGEMENT_ROLES), async (req: AuthRequest, res, ne
       : await runQuery();
 
     res.json({ success: true, data: users, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
+  } catch (err) { next(err); }
+});
+
+// GET /users/bulk-upload/template  — download blank Excel template
+router.get('/bulk-upload/template', authorize(...MANAGEMENT_ROLES), (_req, res) => {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['employeeId','firstName','lastName','email','phone','role','department','team'],
+    ['EMP00010','John','Doe','john.doe@company.com','+1234567890','EMPLOYEE','Engineering','Backend Team'],
+    ['EMP00011','Jane','Smith','jane.smith@company.com','','EMPLOYEE','Engineering','Frontend Team'],
+  ]);
+  ws['!cols'] = [10,12,12,28,16,12,16,14].map(w => ({ wch: w }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Employees');
+  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  res.setHeader('Content-Disposition', 'attachment; filename="employee-bulk-upload-template.xlsx"');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.send(buf);
+});
+
+// POST /users/bulk-upload  — create employees from Excel
+router.post('/bulk-upload', authorize(...MANAGEMENT_ROLES), upload.single('file'), async (req: AuthRequest, res, next) => {
+  try {
+    if (!req.file) throw new AppError('No file uploaded', 400);
+
+    const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+    if (rows.length === 0) throw new AppError('Excel file is empty or has no data rows', 400);
+    if (rows.length > 200)  throw new AppError('Maximum 200 rows per upload', 400);
+
+    // Resolve role / dept / team look-up tables once
+    const [allRoles, allDepts, allTeams] = await Promise.all([
+      prisma.role.findMany(),
+      prisma.department.findMany(),
+      prisma.team.findMany(),
+    ]);
+
+    const roleMap  = Object.fromEntries(allRoles.map(r => [r.name.toUpperCase(), r.id]));
+    const deptMap  = Object.fromEntries(allDepts.map(d => [d.name.toLowerCase(), d.id]));
+    const teamMap  = Object.fromEntries(allTeams.map(t => [t.name.toLowerCase(), t.id]));
+
+    const DEFAULT_PASSWORD = 'Welcome@123';
+    const defaultHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
+
+    const results: any[] = [];
+    let created = 0;
+    let failed  = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+      const row  = rows[i];
+      const rowN = i + 2; // Excel row number (header = 1)
+
+      const firstName = String(row['firstName'] || row['first_name'] || '').trim();
+      const lastName  = String(row['lastName']  || row['last_name']  || '').trim();
+      const email     = String(row['email']     || '').trim().toLowerCase();
+      const phone     = String(row['phone']     || '').trim() || undefined;
+      const roleName  = String(row['role']      || 'EMPLOYEE').trim().toUpperCase();
+      const deptName  = String(row['department']|| '').trim().toLowerCase();
+      const teamName  = String(row['team']      || '').trim().toLowerCase();
+      const empId     = String(row['employeeId']|| row['employee_id'] || '').trim().toUpperCase() || undefined;
+
+      if (!firstName || !lastName || !email) {
+        results.push({ row: rowN, email, status: 'failed', error: 'firstName, lastName, and email are required' });
+        failed++;
+        continue;
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        results.push({ row: rowN, email, status: 'failed', error: 'Invalid email address' });
+        failed++;
+        continue;
+      }
+
+      const roleId = roleMap[roleName] || roleMap['EMPLOYEE'];
+      const departmentId = deptName ? deptMap[deptName] : undefined;
+      const teamId       = teamName ? teamMap[teamName] : undefined;
+
+      try {
+        // Auto-generate employee ID if not provided
+        let resolvedEmpId = empId;
+        if (!resolvedEmpId) {
+          const last = await prisma.user.findFirst({ orderBy: { employeeId: 'desc' } });
+          const lastNum = last?.employeeId?.match(/\d+/)?.[0];
+          const next = lastNum ? String(Number(lastNum) + 1).padStart(5, '0') : '00001';
+          resolvedEmpId = `EMP${next}`;
+        }
+
+        await prisma.user.create({
+          data: {
+            employeeId:   resolvedEmpId,
+            firstName,
+            lastName,
+            email,
+            phone,
+            passwordHash: defaultHash,
+            roleId,
+            departmentId,
+            teamId,
+            status:       'ACTIVE',
+            joiningDate:  new Date(),
+          },
+        });
+
+        results.push({ row: rowN, email, employeeId: resolvedEmpId, status: 'created' });
+        created++;
+      } catch (err: any) {
+        const msg = err?.code === 'P2002'
+          ? `Duplicate: ${err?.meta?.target?.join(', ') || 'email or employeeId'} already exists`
+          : err?.message || 'Unknown error';
+        results.push({ row: rowN, email, status: 'failed', error: msg });
+        failed++;
+      }
+    }
+
+    await invalidateByPattern('users:list:*');
+
+    res.json({
+      success: true,
+      data: {
+        summary: { total: rows.length, created, failed },
+        defaultPassword: DEFAULT_PASSWORD,
+        results,
+      },
+    });
   } catch (err) { next(err); }
 });
 
