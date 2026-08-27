@@ -52,8 +52,8 @@ export async function getDashboard(req: AuthRequest, res: Response, next: NextFu
         where: { ...taskWhere, dueDate: { lt: new Date() }, status: { notIn: ['COMPLETED', 'REJECTED'] } },
       }),
       prisma.task.count({ where: { ...taskWhere, isEscalated: true } }),
-      role !== 'EMPLOYEE' ? prisma.user.count({ where: { deletedAt: null } }) : Promise.resolve(0),
-      role !== 'EMPLOYEE' ? prisma.user.count({ where: { deletedAt: null, status: 'ACTIVE', isOnline: true } }) : Promise.resolve(0),
+      prisma.user.count({ where: role !== 'EMPLOYEE' ? { deletedAt: null } : { id: '' } }),
+      prisma.user.count({ where: role !== 'EMPLOYEE' ? { deletedAt: null, status: 'ACTIVE', isOnline: true } : { id: '' } }),
       prisma.task.findMany({
         where:   taskWhere,
         orderBy: { updatedAt: 'desc' },
@@ -187,10 +187,10 @@ export async function getTeamKPI(req: AuthRequest, res: Response, next: NextFunc
       const metrics = memberMetrics.find((m) => m.userId === member.id);
       return {
         ...member,
-        avgProductivity:   Math.round((metrics?._avg.productivityScore || 0) * 10) / 10,
-        avgWorkHours:      Math.round((metrics?._avg.totalWorkHours || 0) * 10) / 10,
-        tasksCompleted:    metrics?._sum.tasksCompleted || 0,
-        onTimeDeliveryRate: Math.round((metrics?._avg.onTimeDeliveryRate || 0) * 10) / 10,
+        avgProductivity:   Math.round(((metrics?._avg?.productivityScore) || 0) * 10) / 10,
+        avgWorkHours:      Math.round(((metrics?._avg?.totalWorkHours) || 0) * 10) / 10,
+        tasksCompleted:    (metrics?._sum?.tasksCompleted) || 0,
+        onTimeDeliveryRate: Math.round(((metrics?._avg?.onTimeDeliveryRate) || 0) * 10) / 10,
       };
     }).sort((a, b) => b.avgProductivity - a.avgProductivity);
 

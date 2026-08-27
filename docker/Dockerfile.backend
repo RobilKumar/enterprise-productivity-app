@@ -14,11 +14,12 @@ FROM node:20-alpine AS runner
 RUN apk add --no-cache curl tzdata openssl
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/dist          ./dist
-COPY --from=builder /app/node_modules  ./node_modules
-COPY --from=builder /app/package.json  .
-COPY --from=builder /app/prisma        ./prisma
-RUN mkdir -p /var/log/productivity-app
+COPY --from=builder /app/dist                           ./dist
+COPY --from=builder /app/node_modules                   ./node_modules
+COPY --from=builder /app/backend/node_modules/.prisma   ./node_modules/.prisma
+COPY --from=builder /app/package.json                   .
+COPY --from=builder /app/prisma                         ./prisma
+RUN mkdir -p /var/log/productivity-app /app/logs && chown -R node:node /app/logs /var/log/productivity-app
 EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 CMD curl -f http://localhost:5000/health || exit 1
 USER node

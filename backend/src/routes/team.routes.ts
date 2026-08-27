@@ -74,10 +74,10 @@ router.get('/:id/stats', async (req, res, next) => {
   try {
     const teamId = req.params.id;
     const [taskStats, attendance, workHours] = await prisma.$transaction([
-      prisma.task.groupBy({ by: ['status'], where: { teamId, deletedAt: null }, _count: { _all: true } }),
+      prisma.task.groupBy({ by: ['status'], where: { teamId, deletedAt: null }, _count: { _all: true }, orderBy: { status: 'asc' } }),
       prisma.attendance.groupBy({ by: ['status'],
         where: { user: { teamId }, date: { gte: new Date(Date.now() - 7 * 86400000) } },
-        _count: { _all: true } }),
+        _count: { _all: true }, orderBy: { status: 'asc' } }),
       prisma.workTimeLog.aggregate({
         where: { user: { teamId }, startTime: { gte: new Date(Date.now() - 7 * 86400000) } },
         _sum: { durationMs: true },

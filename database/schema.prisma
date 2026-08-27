@@ -107,6 +107,7 @@ model User {
   isOnline         Boolean   @default(false)
   twoFactorEnabled Boolean   @default(false)
   twoFactorSecret  String?
+  extraPermissions String    @default("[]")
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   deletedAt        DateTime?

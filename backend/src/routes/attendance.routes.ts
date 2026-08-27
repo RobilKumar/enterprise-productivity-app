@@ -55,7 +55,7 @@ router.get('/my', async (req: AuthRequest, res, next) => {
     const endDate   = req.query.endDate   ? new Date(req.query.endDate   as string) : new Date();
     const [records, stats] = await prisma.$transaction([
       prisma.attendance.findMany({ where: { userId: req.user!.userId, date: { gte: startDate, lte: endDate } }, orderBy: { date: 'desc' }, skip: (page-1)*limit, take: limit }),
-      prisma.attendance.groupBy({ by: ['status'], where: { userId: req.user!.userId, date: { gte: startDate, lte: endDate } }, _count: { _all: true } }),
+      prisma.attendance.groupBy({ by: ['status'], where: { userId: req.user!.userId, date: { gte: startDate, lte: endDate } }, _count: { _all: true }, orderBy: { status: 'asc' } }),
     ]);
     res.json({ success: true, data: records, stats });
   } catch (err) { next(err); }

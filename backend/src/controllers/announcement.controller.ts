@@ -45,7 +45,7 @@ export async function getAnnouncements(req: AuthRequest, res: Response, next: Ne
         where,
         skip:    (page - 1) * limit,
         take:    limit,
-        orderBy: [{ isPinned: 'desc' }, { priority: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
         include: { author: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } } },
       }),
       prisma.announcement.count({ where }),
