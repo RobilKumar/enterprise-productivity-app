@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, createContext, useContext, useEffect, useCallback } from 'react';
+import React, { useState, useRef, createContext, useContext, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { io as socketIO } from 'socket.io-client';
 import { BiometricAuth, BiometryErrorType } from '@aparajita/capacitor-biometric-auth';
@@ -8,11 +8,11 @@ export { API } from './lib/api'; // re-export so existing consumers still work
 import { DashboardPage } from './pages/DashboardPage';
 import { EmployeesPage, TasksManagementPage, AttendancePage, LeavePage, AuditPage } from './pages/index';
 
-// â”€â”€â”€ Auth context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Auth context ─────────────────────────────────────────────
 const AuthCtx = createContext<any>(null);
 export const useAuth = () => useContext(AuthCtx);
 
-// â”€â”€â”€ Error Boundary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Error Boundary ───────────────────────────────────────────
 // Catches any page-level crash and shows a friendly screen instead of blank white.
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -35,7 +35,7 @@ class ErrorBoundary extends React.Component<
           display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
           minHeight:'60vh', padding:32, textAlign:'center',
         }}>
-          <div style={{ fontSize:52, marginBottom:16 }}>ðŸ˜•</div>
+          <div style={{ fontSize:52, marginBottom:16 }}>😕</div>
           <div style={{ fontSize:18, fontWeight:700, marginBottom:8, color:'var(--text)' }}>
             Something went wrong
           </div>
@@ -48,7 +48,7 @@ class ErrorBoundary extends React.Component<
               padding:'10px 24px', borderRadius:10, background:'var(--primary)',
               color:'#fff', border:'none', cursor:'pointer', fontWeight:600, fontSize:14,
             }}>
-            â† Go Back
+            ← Go Back
           </button>
         </div>
       );
@@ -57,7 +57,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-// â”€â”€â”€ Logout Confirmation Dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Logout Confirmation Dialog ───────────────────────────────
 function LogoutConfirm({ onConfirm, onCancel }: { onConfirm:()=>void; onCancel:()=>void }) {
   return (
     <div style={{
@@ -71,7 +71,7 @@ function LogoutConfirm({ onConfirm, onCancel }: { onConfirm:()=>void; onCancel:(
         animation:'slideUp .2s cubic-bezier(.32,1,.56,1)',
       }} onClick={e => e.stopPropagation()}>
         <div style={{ width:40, height:4, background:'var(--border)', borderRadius:2, margin:'0 auto 20px' }} />
-        <div style={{ fontSize:20, marginBottom:8, textAlign:'center' }}>ðŸ‘‹</div>
+        <div style={{ fontSize:20, marginBottom:8, textAlign:'center' }}>👋</div>
         <div style={{ fontWeight:700, fontSize:17, textAlign:'center', marginBottom:6 }}>Sign out?</div>
         <div style={{ fontSize:13, color:'var(--muted)', textAlign:'center', marginBottom:24 }}>
           You'll need to sign in again to access your workspace.
@@ -93,7 +93,7 @@ function LogoutConfirm({ onConfirm, onCancel }: { onConfirm:()=>void; onCancel:(
   );
 }
 
-// â”€â”€â”€ PG Brand Logo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── PG Brand Logo ────────────────────────────────────────────
 function PGLogo({ size = 32, textSize = 12 }: { size?: number; textSize?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink:0 }}>
@@ -112,7 +112,7 @@ function PGLogo({ size = 32, textSize = 12 }: { size?: number; textSize?: number
   );
 }
 
-// â”€â”€â”€ Shared style helpers (used throughout all pages) â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Shared style helpers (used throughout all pages) ─────────
 const labelStyle: React.CSSProperties = {
   display:'block', fontSize:11, fontWeight:600, color:'var(--muted)',
   textTransform:'uppercase', letterSpacing:.5, marginBottom:5, marginTop:14,
@@ -129,7 +129,7 @@ const smBtn: React.CSSProperties = {
   cursor:'pointer', fontSize:12, color:'var(--text-sub)', fontFamily:'inherit',
 };
 
-// â”€â”€â”€ Login Page â€” PG World-Class Design â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Login Page — PG World-Class Design ──────────────────────
 function LoginPage() {
   const { login }               = useAuth();
   const [empId,  setEmpId]      = useState('EMP00001');
@@ -173,7 +173,7 @@ function LoginPage() {
       position:'relative', overflow:'hidden',
     }}>
 
-      {/* â”€â”€ Animated background layers â”€â”€ */}
+      {/* ── Animated background layers ── */}
       {/* Large glow top-right */}
       <div style={{ position:'absolute', top:'-15%', right:'-10%', width:600, height:600,
         borderRadius:'50%',
@@ -219,7 +219,7 @@ function LoginPage() {
         }} />
       ))}
 
-      {/* â”€â”€ Brand header â”€â”€ */}
+      {/* ── Brand header ── */}
       <div style={{
         display:'flex', flexDirection:'column', alignItems:'center',
         marginBottom:26, zIndex:10,
@@ -281,7 +281,7 @@ function LoginPage() {
         </div>
       </div>
 
-      {/* â”€â”€ Login Card â”€â”€ */}
+      {/* ── Login Card ── */}
       <div style={{
         width:'100%', maxWidth:430, zIndex:10,
         position:'relative',
@@ -305,7 +305,7 @@ function LoginPage() {
           <div style={{ marginBottom:22, display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
             <div>
               <h2 style={{ fontSize:21, fontWeight:800, color:'#111827', margin:'0 0 4px', letterSpacing:-.5 }}>
-                Welcome back ðŸ‘‹
+                Welcome back 👋
               </h2>
               <p style={{ fontSize:13, color:'#6B7280', margin:0, lineHeight:1.5 }}>
                 Sign in to access your workspace
@@ -317,7 +317,7 @@ function LoginPage() {
               background:'linear-gradient(135deg,#FFF0F2,#FFE0E5)',
               border:'1.5px solid #FECDD3',
               display:'flex', alignItems:'center', justifyContent:'center', fontSize:18,
-            }}>ðŸ”</div>
+            }}>🔐</div>
           </div>
 
           {/* Divider */}
@@ -330,7 +330,7 @@ function LoginPage() {
               borderRadius:12, padding:'12px 14px', marginBottom:18,
               animation:'pg-shake .4s ease',
             }}>
-              <span style={{ fontSize:15, flexShrink:0 }}>âš ï¸</span>
+              <span style={{ fontSize:15, flexShrink:0 }}>⚠️</span>
               <span style={{ fontSize:13, color:'#C8102E', fontWeight:500, lineHeight:1.5 }}>{err}</span>
             </div>
           )}
@@ -420,7 +420,7 @@ function LoginPage() {
                     <span style={{ display:'inline-block', width:17, height:17, borderRadius:'50%',
                       border:'2.5px solid rgba(255,255,255,.4)', borderTopColor:'#fff',
                       animation:'pg-spin .7s linear infinite' }} />
-                    Signing inâ€¦
+                    Signing in…
                   </>
                 ) : (
                   <>
@@ -441,13 +441,13 @@ function LoginPage() {
             <div style={{ flex:1, height:1, background:'#F0F0F0' }} />
           </div>
 
-          {/* Feature pills â€” upgraded */}
+          {/* Feature pills — upgraded */}
           <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'center', marginBottom:16 }}>
             {[
-              { icon:'ðŸ“‹', label:'Tasks',       bg:'#EFF6FF', border:'#BFDBFE', color:'#1D4ED8' },
-              { icon:'ðŸ“…', label:'Attendance',  bg:'#F0FDF4', border:'#BBF7D0', color:'#15803D' },
-              { icon:'ðŸ†', label:'Leaderboard', bg:'#FFFBEB', border:'#FDE68A', color:'#92400E' },
-              { icon:'ðŸšª', label:'Gatepass',    bg:'#FFF0F2', border:'#FECDD3', color:'#C8102E' },
+              { icon:'📋', label:'Tasks',       bg:'#EFF6FF', border:'#BFDBFE', color:'#1D4ED8' },
+              { icon:'📅', label:'Attendance',  bg:'#F0FDF4', border:'#BBF7D0', color:'#15803D' },
+              { icon:'🏆', label:'Leaderboard', bg:'#FFFBEB', border:'#FDE68A', color:'#92400E' },
+              { icon:'🚪', label:'Gatepass',    bg:'#FFF0F2', border:'#FECDD3', color:'#C8102E' },
             ].map(f => (
               <span key={f.label} style={{
                 fontSize:11, padding:'5px 12px', borderRadius:99,
@@ -475,7 +475,7 @@ function LoginPage() {
             <div style={{ width:32, height:2, background:'linear-gradient(90deg,#C8102E,#FF6B35)',
               borderRadius:2, margin:'0 auto 8px' }} />
             <div style={{ fontSize:13, fontWeight:600, color:'#374151', letterSpacing:.3, lineHeight:1.5 }}>
-              One Team &nbsp;Â·&nbsp; One Dream &nbsp;Â·&nbsp; One Goal
+              One Team &nbsp;·&nbsp; One Dream &nbsp;·&nbsp; One Goal
             </div>
           </div>
         </div>
@@ -484,11 +484,11 @@ function LoginPage() {
       {/* Footer */}
       <div style={{ zIndex:10, marginTop:24, textAlign:'center', animation:'pg-slideUp .5s ease .3s both' }}>
         <p style={{ fontSize:11, color:'rgba(255,255,255,.18)', margin:'0 0 4px' }}>
-          Â© 2025 PG Technoplast Ltd Â· All rights reserved
+          © 2025 PG Technoplast Ltd · All rights reserved
         </p>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
           <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(200,16,46,.5)' }} />
-          <span style={{ fontSize:10, color:'rgba(255,255,255,.14)', letterSpacing:.5 }}>SECURE Â· ENCRYPTED Â· ENTERPRISE</span>
+          <span style={{ fontSize:10, color:'rgba(255,255,255,.14)', letterSpacing:.5 }}>SECURE · ENCRYPTED · ENTERPRISE</span>
           <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(200,16,46,.5)' }} />
         </div>
       </div>
@@ -507,63 +507,63 @@ function LoginPage() {
   );
 }
 
-// â”€â”€â”€ Role-based navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Role-based navigation ────────────────────────────────────
 const ALL_NAV = [
-  { to:'/dashboard',     label:'Dashboard',       icon:'ðŸ ', roles:[] },
+  { to:'/dashboard',     label:'Dashboard',       icon:'🏠', roles:[] },
   // Employees see "My Tasks"; managers see "Task Mgmt"
-  { to:'/my-tasks',      label:'My Tasks',         icon:'âœ…', roles:['EMPLOYEE'] },
-  { to:'/tasks',         label:'Task Management',  icon:'ðŸ“‹', roles:['SUPER_ADMIN','ADMIN','MANAGER','TEAM_LEADER'] },
-  { to:'/employees',     label:'Employees',        icon:'ðŸ‘¥', roles:['SUPER_ADMIN','ADMIN','MANAGER'] },
-  { to:'/departments',   label:'Departments',      icon:'ðŸ›ï¸',  roles:['SUPER_ADMIN','ADMIN'] },
-  { to:'/teams',         label:'Teams',            icon:'ðŸ¢', roles:['SUPER_ADMIN','ADMIN','MANAGER','TEAM_LEADER'] },
-  { to:'/shifts',        label:'Shift Master',     icon:'ðŸ•', roles:['SUPER_ADMIN','ADMIN'] },
-  { to:'/plants',        label:'Plant Master',     icon:'ðŸ­', roles:['SUPER_ADMIN','ADMIN'] },
-  { to:'/attendance',    label:'Attendance',       icon:'ðŸ“…', roles:[] },
-  { to:'/leaves',        label:'Leave',            icon:'ðŸŒ´', roles:[] },
-  { to:'/kpi',           label:'KPI Reports',      icon:'ðŸ“Š', roles:['SUPER_ADMIN','ADMIN','MANAGER'] },
-  { to:'/rights',        label:'Rights Master',    icon:'ðŸ”', roles:['SUPER_ADMIN'] },
-  { to:'/announcements', label:'Announcements',    icon:'ðŸ“¢', roles:['SUPER_ADMIN','ADMIN','MANAGER','TEAM_LEADER'] },
-  { to:'/leaderboard',   label:'Leaderboard',      icon:'ðŸ†', roles:[] },
-  { to:'/audit',         label:'Audit Logs',       icon:'ðŸ”', roles:['SUPER_ADMIN','ADMIN'] },
-  { to:'/gatepass',     label:'Gatepass',         icon:'ðŸšª', roles:[] },
+  { to:'/my-tasks',      label:'My Tasks',         icon:'✅', roles:['EMPLOYEE'] },
+  { to:'/tasks',         label:'Task Management',  icon:'📋', roles:['SUPER_ADMIN','ADMIN','MANAGER','TEAM_LEADER'] },
+  { to:'/employees',     label:'Employees',        icon:'👥', roles:['SUPER_ADMIN','ADMIN','MANAGER'] },
+  { to:'/departments',   label:'Departments',      icon:'🏛️',  roles:['SUPER_ADMIN','ADMIN'] },
+  { to:'/teams',         label:'Teams',            icon:'🏢', roles:['SUPER_ADMIN','ADMIN','MANAGER','TEAM_LEADER'] },
+  { to:'/shifts',        label:'Shift Master',     icon:'🕐', roles:['SUPER_ADMIN','ADMIN'] },
+  { to:'/plants',        label:'Plant Master',     icon:'🏭', roles:['SUPER_ADMIN','ADMIN'] },
+  { to:'/attendance',    label:'Attendance',       icon:'📅', roles:[] },
+  { to:'/leaves',        label:'Leave',            icon:'🌴', roles:[] },
+  { to:'/kpi',           label:'KPI Reports',      icon:'📊', roles:['SUPER_ADMIN','ADMIN','MANAGER'] },
+  { to:'/rights',        label:'Rights Master',    icon:'🔐', roles:['SUPER_ADMIN'] },
+  { to:'/announcements', label:'Announcements',    icon:'📢', roles:['SUPER_ADMIN','ADMIN','MANAGER','TEAM_LEADER'] },
+  { to:'/leaderboard',   label:'Leaderboard',      icon:'🏆', roles:[] },
+  { to:'/audit',         label:'Audit Logs',       icon:'🔍', roles:['SUPER_ADMIN','ADMIN'] },
+  { to:'/gatepass',     label:'Gatepass',         icon:'🚪', roles:[] },
 ];
 
-// â”€â”€â”€ Nav sections for Jira-style grouping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Nav sections for Jira-style grouping ─────────────────────
 const NAV_SECTIONS = [
   {
     label: 'Workspace',
     items: [
-      { to:'/dashboard',  label:'Dashboard',      icon:'ðŸ ', roles:[] },
-      { to:'/my-tasks',   label:'My Tasks',        icon:'âœ…', roles:['EMPLOYEE'] },
-      { to:'/tasks',      label:'Task Management', icon:'ðŸ“‹', roles:['SUPER_ADMIN','ADMIN','MANAGER','TEAM_LEADER'] },
-      { to:'/attendance', label:'Attendance',      icon:'ðŸ“…', roles:[] },
-      { to:'/leaves',     label:'Leave',           icon:'ðŸŒ´', roles:[] },
-      { to:'/gatepass',   label:'Gatepass',        icon:'ðŸšª', roles:[] },
+      { to:'/dashboard',  label:'Dashboard',      icon:'🏠', roles:[] },
+      { to:'/my-tasks',   label:'My Tasks',        icon:'✅', roles:['EMPLOYEE'] },
+      { to:'/tasks',      label:'Task Management', icon:'📋', roles:['SUPER_ADMIN','ADMIN','MANAGER','TEAM_LEADER'] },
+      { to:'/attendance', label:'Attendance',      icon:'📅', roles:[] },
+      { to:'/leaves',     label:'Leave',           icon:'🌴', roles:[] },
+      { to:'/gatepass',   label:'Gatepass',        icon:'🚪', roles:[] },
     ],
   },
   {
     label: 'People',
     items: [
-      { to:'/employees',    label:'Employees',    icon:'ðŸ‘¥', roles:['SUPER_ADMIN','ADMIN','MANAGER'] },
-      { to:'/departments',  label:'Departments',  icon:'ðŸ›ï¸',  roles:['SUPER_ADMIN','ADMIN'] },
-      { to:'/teams',        label:'Teams',        icon:'ðŸ¢', roles:['SUPER_ADMIN','ADMIN','MANAGER','TEAM_LEADER'] },
+      { to:'/employees',    label:'Employees',    icon:'👥', roles:['SUPER_ADMIN','ADMIN','MANAGER'] },
+      { to:'/departments',  label:'Departments',  icon:'🏛️',  roles:['SUPER_ADMIN','ADMIN'] },
+      { to:'/teams',        label:'Teams',        icon:'🏢', roles:['SUPER_ADMIN','ADMIN','MANAGER','TEAM_LEADER'] },
     ],
   },
   {
     label: 'Configuration',
     items: [
-      { to:'/shifts', label:'Shift Master', icon:'ðŸ•', roles:['SUPER_ADMIN','ADMIN'] },
-      { to:'/plants', label:'Plant Master', icon:'ðŸ­', roles:['SUPER_ADMIN','ADMIN'] },
-      { to:'/rights', label:'Rights Master', icon:'ðŸ”', roles:['SUPER_ADMIN'] },
+      { to:'/shifts', label:'Shift Master', icon:'🕐', roles:['SUPER_ADMIN','ADMIN'] },
+      { to:'/plants', label:'Plant Master', icon:'🏭', roles:['SUPER_ADMIN','ADMIN'] },
+      { to:'/rights', label:'Rights Master', icon:'🔐', roles:['SUPER_ADMIN'] },
     ],
   },
   {
     label: 'Insights',
     items: [
-      { to:'/kpi',           label:'KPI Reports',  icon:'ðŸ“Š', roles:['SUPER_ADMIN','ADMIN','MANAGER'] },
-      { to:'/leaderboard',   label:'Leaderboard',  icon:'ðŸ†', roles:[] },
-      { to:'/announcements', label:'Announcements',icon:'ðŸ“¢', roles:['SUPER_ADMIN','ADMIN','MANAGER','TEAM_LEADER'] },
-      { to:'/audit',         label:'Audit Logs',   icon:'ðŸ”', roles:['SUPER_ADMIN','ADMIN'] },
+      { to:'/kpi',           label:'KPI Reports',  icon:'📊', roles:['SUPER_ADMIN','ADMIN','MANAGER'] },
+      { to:'/leaderboard',   label:'Leaderboard',  icon:'🏆', roles:[] },
+      { to:'/announcements', label:'Announcements',icon:'📢', roles:['SUPER_ADMIN','ADMIN','MANAGER','TEAM_LEADER'] },
+      { to:'/audit',         label:'Audit Logs',   icon:'🔍', roles:['SUPER_ADMIN','ADMIN'] },
     ],
   },
 ];
@@ -615,10 +615,10 @@ function Sidebar({ user, logout, toggleTheme, isDark }: any) {
         </div>
         <div style={{ display:'flex', gap:6 }}>
           <button onClick={toggleTheme} className="btn btn--ghost btn--sm" style={{ flex:1 }}>
-            {isDark ? 'â˜€ï¸ Light' : 'ðŸŒ™ Dark'}
+            {isDark ? '☀️ Light' : '🌙 Dark'}
           </button>
           <button onClick={logout} className="btn btn--ghost btn--sm" style={{ flex:1 }}>
-            ðŸšª Sign Out
+            🚪 Sign Out
           </button>
         </div>
       </div>
@@ -626,7 +626,7 @@ function Sidebar({ user, logout, toggleTheme, isDark }: any) {
   );
 }
 
-// â”€â”€â”€ Page title map (for mobile top bar) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Page title map (for mobile top bar) ─────────────────────
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard':     'Dashboard',
   '/my-tasks':      'My Tasks',
@@ -646,7 +646,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/gatepass':      'Gatepass',
 };
 
-// â”€â”€â”€ Mobile Top Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Mobile Top Bar ───────────────────────────────────────────
 function MobileTopBar({ user, logout, isDark, toggleTheme }: any) {
   const { pathname } = useLocation();
   const title   = PAGE_TITLES[pathname] || 'Enterprise Productivity';
@@ -666,7 +666,7 @@ function MobileTopBar({ user, logout, isDark, toggleTheme }: any) {
           border:'1.5px solid var(--border)', cursor:'pointer', fontSize:16,
           display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0,
           transition:'all .15s',
-        }}>{isDark ? 'â˜€ï¸' : 'ðŸŒ™'}</button>
+        }}>{isDark ? '☀️' : '🌙'}</button>
         <button onClick={logout} style={{
           width:36, height:36, borderRadius:'50%',
           background:'linear-gradient(135deg,#E8122F,#A00D24)',
@@ -680,7 +680,7 @@ function MobileTopBar({ user, logout, isDark, toggleTheme }: any) {
   );
 }
 
-// â”€â”€â”€ Icon tile colors per route â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Icon tile colors per route ──────────────────────────────
 const TILE_COLORS: Record<string, string> = {
   '/dashboard':     'linear-gradient(145deg,#6366F1,#4F46E5)',
   '/tasks':         'linear-gradient(145deg,#3B82F6,#2563EB)',
@@ -700,7 +700,7 @@ const TILE_COLORS: Record<string, string> = {
   '/gatepass':      'linear-gradient(145deg,#C8102E,#8B0D1F)',
 };
 
-// â”€â”€â”€ Bottom Navigation + More Drawer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Bottom Navigation + More Drawer ─────────────────────────
 function BottomNav({ user }: any) {
   const role = user?.role || '';
   const [showDrawer, setShowDrawer] = useState(false);
@@ -711,14 +711,14 @@ function BottomNav({ user }: any) {
 
   // Primary bar items: 2 left + FAB center + 2 right
   const LEFT_TABS = [
-    { to:'/dashboard', label:'Home',   icon:'ðŸ ' },
+    { to:'/dashboard', label:'Home',   icon:'🏠' },
     role === 'EMPLOYEE'
-      ? { to:'/my-tasks', label:'Tasks', icon:'âœ…' }
-      : { to:'/tasks',    label:'Tasks', icon:'ðŸ“‹' },
+      ? { to:'/my-tasks', label:'Tasks', icon:'✅' }
+      : { to:'/tasks',    label:'Tasks', icon:'📋' },
   ];
   const RIGHT_TABS = [
-    { to:'/attendance', label:'Attend', icon:'ðŸ“…' },
-    { to:'/leaves',     label:'Leave',  icon:'ðŸŒ´' },
+    { to:'/attendance', label:'Attend', icon:'📅' },
+    { to:'/leaves',     label:'Leave',  icon:'🌴' },
   ];
 
   // All nav items for the drawer, skip ones already in primary bar
@@ -750,7 +750,7 @@ function BottomNav({ user }: any) {
 
   return (
     <>
-      {/* â”€â”€ Fixed bottom bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Fixed bottom bar ──────────────────────────────── */}
       <nav className="m-bnav">
         {LEFT_TABS.map(tab => (
           <NavLink key={tab.to} to={tab.to}
@@ -762,7 +762,7 @@ function BottomNav({ user }: any) {
           </NavLink>
         ))}
 
-        {/* â”€â”€ Floating center FAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── Floating center FAB ─────────────────────────── */}
         <div className="m-bnav__fab">
           <button className="m-bnav__fab-btn" onClick={openDrawer}>
             <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#fff" strokeWidth="2.2">
@@ -782,7 +782,7 @@ function BottomNav({ user }: any) {
         ))}
       </nav>
 
-      {/* â”€â”€ Slide-up drawer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Slide-up drawer ───────────────────────────────── */}
       {showDrawer && (
         <div className="m-drawer-bg"
           style={{ opacity: drawerOpen ? 1 : 0, transition:'opacity .22s' }}
@@ -805,7 +805,7 @@ function BottomNav({ user }: any) {
                 <div className="m-drawer__banner-name">{user?.firstName} {user?.lastName}</div>
                 <div className="m-drawer__banner-role">{(user?.role||'').replace(/_/g,' ')}</div>
               </div>
-              <button className="m-drawer__banner-close" onClick={closeDrawer}>âœ•</button>
+              <button className="m-drawer__banner-close" onClick={closeDrawer}>✕</button>
             </div>
 
             {/* Quick Access */}
@@ -830,7 +830,7 @@ function BottomNav({ user }: any) {
               </>
             )}
 
-            {/* Security Settings â€” fingerprint toggle (only on native device) */}
+            {/* Security Settings — fingerprint toggle (only on native device) */}
             <div style={{ borderTop:'1px solid var(--border)', margin:'0 -4px', padding:'14px 4px 4px' }}>
               <div className="m-drawer__section" style={{ paddingTop:0, marginBottom:10 }}>Security</div>
               <BiometricToggle />
@@ -844,7 +844,7 @@ function BottomNav({ user }: any) {
   );
 }
 
-// â”€â”€â”€ Placeholder pages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Placeholder pages ────────────────────────────────────────
 function PlaceholderPage({ title }: { title: string }) {
   return (
     <div style={{ padding:32 }}>
@@ -854,7 +854,7 @@ function PlaceholderPage({ title }: { title: string }) {
   );
 }
 
-// â”€â”€â”€ Leaderboard page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Leaderboard page ─────────────────────────────────────────
 function LeaderboardPage() {
   const [data,    setData]    = useState<any[]>([]);
   const [period,  setPeriod]  = useState<'weekly'|'monthly'>('weekly');
@@ -872,7 +872,7 @@ function LeaderboardPage() {
   return (
     <div style={{ padding:24 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
-        <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>ðŸ† Leaderboard</h1>
+        <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>🏆 Leaderboard</h1>
         <div style={{ display:'flex', gap:8 }}>
           {(['weekly','monthly'] as const).map(p => (
             <button key={p} onClick={() => setPeriod(p)}
@@ -883,12 +883,12 @@ function LeaderboardPage() {
         </div>
       </div>
 
-      {loading ? <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loadingâ€¦</div> : (
+      {loading ? <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loading…</div> : (
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
           {data.map((entry: any) => (
             <div key={entry.id} style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 20px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, transition:'box-shadow .15s' }}>
               <div style={{ width:36, height:36, borderRadius:'50%', background: COLORS[(entry.rank-1) % COLORS.length], display:'flex', alignItems:'center', justifyContent:'center', color: entry.rank<=3?'#000':'#fff', fontWeight:800, fontSize:14, flexShrink:0 }}>
-                {entry.rank <= 3 ? ['ðŸ¥‡','ðŸ¥ˆ','ðŸ¥‰'][entry.rank-1] : entry.rank}
+                {entry.rank <= 3 ? ['🥇','🥈','🥉'][entry.rank-1] : entry.rank}
               </div>
               <div style={{ width:38, height:38, borderRadius:'50%', background:'var(--primary)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:13, flexShrink:0 }}>
                 {entry.user?.firstName?.[0]}{entry.user?.lastName?.[0]}
@@ -898,7 +898,7 @@ function LeaderboardPage() {
                 <div style={{ fontSize:11, color:'var(--muted)' }}>{entry.user?.team?.name || entry.user?.employeeId}</div>
               </div>
               <div style={{ textAlign:'right' }}>
-                <div style={{ fontSize:20, fontWeight:800, color:'var(--primary)' }}>â­ {entry.points.toLocaleString()}</div>
+                <div style={{ fontSize:20, fontWeight:800, color:'var(--primary)' }}>⭐ {entry.points.toLocaleString()}</div>
                 <div style={{ fontSize:11, color:'var(--muted)' }}>points</div>
               </div>
             </div>
@@ -910,7 +910,7 @@ function LeaderboardPage() {
   );
 }
 
-// â”€â”€â”€ Announcements page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Announcements page ───────────────────────────────────────
 function AnnouncementsPage() {
   const [items,   setItems]   = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -937,16 +937,16 @@ function AnnouncementsPage() {
   return (
     <div style={{ padding:24 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
-        <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>ðŸ“¢ Announcements</h1>
+        <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>📢 Announcements</h1>
         <button onClick={() => setShowNew(true)} style={{ padding:'9px 18px', borderRadius:9, background:'var(--primary)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600 }}>+ New Announcement</button>
       </div>
 
-      {loading ? <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loadingâ€¦</div> : (
+      {loading ? <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loading…</div> : (
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
           {items.map((a: any) => (
             <div key={a.id} style={{ background:'var(--surface)', border:`1px solid ${a.isPinned ? 'var(--primary)' : 'var(--border)'}`, borderRadius:12, padding:20 }}>
               <div style={{ display:'flex', gap:8, marginBottom:10, alignItems:'flex-start' }}>
-                {a.isPinned && <span style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:'var(--primary-bg)', color:'var(--primary)', fontWeight:700 }}>ðŸ“Œ PINNED</span>}
+                {a.isPinned && <span style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:'var(--primary-bg)', color:'var(--primary)', fontWeight:700 }}>📌 PINNED</span>}
                 <span style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:`${TYPE_COLORS[a.type]}20`, color:TYPE_COLORS[a.type]||'#6B7280', fontWeight:700 }}>{a.type}</span>
                 <span style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:'#F3F4F6', color:'#6B7280' }}>{a.targetType}</span>
                 <span style={{ fontSize:11, color:'var(--muted)', marginLeft:'auto' }}>{new Date(a.createdAt).toLocaleDateString()}</span>
@@ -965,7 +965,7 @@ function AnnouncementsPage() {
       {showNew && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }}
           onClick={e => e.target===e.currentTarget && setShowNew(false)}>
-          <div style={{ maxWidth:'calc(100vw - 32px)', width:520, background:'var(--surface)', borderRadius:16, padding:28, maxHeight:'80vh', overflowY:'auto' }}>
+          <div style={{ width:520, background:'var(--surface)', borderRadius:16, padding:28, maxHeight:'80vh', overflowY:'auto' }}>
             <h2 style={{ fontSize:18, fontWeight:700, marginBottom:20 }}>New Announcement</h2>
             <form onSubmit={submit}>
               <label style={labelStyle}>Title</label>
@@ -1002,7 +1002,7 @@ function AnnouncementsPage() {
   );
 }
 
-// â”€â”€â”€ Departments page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Departments page ─────────────────────────────────────────
 function DepartmentsPage() {
   const [depts,   setDepts]   = useState<any[]>([]);
   const [users,   setUsers]   = useState<any[]>([]);
@@ -1074,37 +1074,37 @@ function DepartmentsPage() {
     <div style={{ padding:24 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
         <div>
-          <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>ðŸ›ï¸ Departments</h1>
+          <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>🏛️ Departments</h1>
           <p style={{ fontSize:13, color:'var(--muted)', margin:'4px 0 0' }}>Manage company departments and their managers</p>
         </div>
         <button onClick={openCreate} style={{ padding:'9px 20px', borderRadius:9, background:'var(--primary)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600 }}>+ New Department</button>
       </div>
 
       {loading ? (
-        <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loadingâ€¦</div>
+        <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loading…</div>
       ) : (
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:16 }}>
           {depts.map((d: any) => (
             <div key={d.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:20, display:'flex', flexDirection:'column', gap:10 }}>
               <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <div style={{ width:44, height:44, borderRadius:12, background:'var(--primary-bg)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, flexShrink:0 }}>ðŸ›ï¸</div>
+                  <div style={{ width:44, height:44, borderRadius:12, background:'var(--primary-bg)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, flexShrink:0 }}>🏛️</div>
                   <div>
                     <div style={{ fontWeight:700, fontSize:15 }}>{d.name}</div>
                     {d.code && <div style={{ fontSize:11, color:'var(--muted)', fontFamily:'monospace', background:'var(--bg)', padding:'1px 6px', borderRadius:4, display:'inline-block', marginTop:2 }}>{d.code}</div>}
                   </div>
                 </div>
                 <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-                  <button onClick={() => openEdit(d)} title="Edit" style={{ padding:'5px 10px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12, color:'var(--muted)' }}>âœï¸</button>
-                  <button onClick={() => deleteDept(d)} title="Delete" style={{ padding:'5px 10px', borderRadius:7, border:'1px solid #FCA5A5', background:'transparent', cursor:'pointer', fontSize:12, color:'#EF4444' }}>ðŸ—‘ï¸</button>
+                  <button onClick={() => openEdit(d)} title="Edit" style={{ padding:'5px 10px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12, color:'var(--muted)' }}>✏️</button>
+                  <button onClick={() => deleteDept(d)} title="Delete" style={{ padding:'5px 10px', borderRadius:7, border:'1px solid #FCA5A5', background:'transparent', cursor:'pointer', fontSize:12, color:'#EF4444' }}>🗑️</button>
                 </div>
               </div>
 
               {d.description && <p style={{ fontSize:13, color:'var(--muted)', margin:0, lineHeight:1.5 }}>{d.description}</p>}
 
               <div style={{ display:'flex', gap:20, fontSize:12, color:'var(--muted)' }}>
-                <span>ðŸ‘¥ {d._count?.users ?? 0} employees</span>
-                <span>ðŸ¢ {d._count?.teams ?? 0} teams</span>
+                <span>👥 {d._count?.users ?? 0} employees</span>
+                <span>🏢 {d._count?.teams ?? 0} teams</span>
               </div>
 
               {d.manager && (
@@ -1132,9 +1132,9 @@ function DepartmentsPage() {
       {modal && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }}
           onClick={e => e.target === e.currentTarget && closeModal()}>
-          <div style={{ maxWidth:'calc(100vw - 32px)', width:480, background:'var(--surface)', borderRadius:16, padding:28, maxHeight:'90vh', overflowY:'auto' }}>
+          <div style={{ width:480, background:'var(--surface)', borderRadius:16, padding:28, maxHeight:'90vh', overflowY:'auto' }}>
             <h2 style={{ fontSize:18, fontWeight:700, marginBottom:20 }}>
-              {modal === 'create' ? 'ðŸ›ï¸ New Department' : `âœï¸ Edit â€” ${editing?.name}`}
+              {modal === 'create' ? '🏛️ New Department' : `✏️ Edit — ${editing?.name}`}
             </h2>
             {err && <div style={{ background:'#FEF2F2', color:'#DC2626', padding:'10px 14px', borderRadius:8, marginBottom:14, fontSize:13 }}>{err}</div>}
             <form onSubmit={submit}>
@@ -1146,11 +1146,11 @@ function DepartmentsPage() {
               <p style={{ fontSize:11, color:'var(--muted)', margin:'2px 0 0' }}>Short uppercase code (max 10 chars)</p>
 
               <label style={labelStyle}>Description</label>
-              <textarea value={form.description} onChange={e => setForm({ ...form, description:e.target.value })} rows={3} placeholder="Optional descriptionâ€¦" style={{ ...inputStyle, resize:'vertical' as const }} />
+              <textarea value={form.description} onChange={e => setForm({ ...form, description:e.target.value })} rows={3} placeholder="Optional description…" style={{ ...inputStyle, resize:'vertical' as const }} />
 
               <label style={labelStyle}>Department Manager (optional)</label>
               <select value={form.managerId} onChange={e => setForm({ ...form, managerId:e.target.value })} style={inputStyle}>
-                <option value="">â€” No manager assigned â€”</option>
+                <option value="">— No manager assigned —</option>
                 {users.map((u: any) => (
                   <option key={u.id} value={u.id}>
                     {u.firstName} {u.lastName} ({u.role?.name ?? u.role})
@@ -1161,7 +1161,7 @@ function DepartmentsPage() {
               <div style={{ display:'flex', gap:10, marginTop:22 }}>
                 <button type="button" onClick={closeModal} style={{ ...smBtn, flex:1, padding:12, textAlign:'center' }}>Cancel</button>
                 <button type="submit" disabled={saving} style={{ flex:1, padding:12, borderRadius:9, background:'var(--primary)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600, opacity:saving?.7:1 }}>
-                  {saving ? 'Savingâ€¦' : modal === 'create' ? 'Create Department' : 'Save Changes'}
+                  {saving ? 'Saving…' : modal === 'create' ? 'Create Department' : 'Save Changes'}
                 </button>
               </div>
             </form>
@@ -1172,7 +1172,7 @@ function DepartmentsPage() {
   );
 }
 
-// â”€â”€â”€ Team Master Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Team Master Page ─────────────────────────────────────────
 function TeamsPage() {
   const [teams,   setTeams]   = useState<any[]>([]);
   const [users,   setUsers]   = useState<any[]>([]);
@@ -1273,29 +1273,29 @@ function TeamsPage() {
       {/* Header */}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
         <div>
-          <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>ðŸ¢ Team Master</h1>
+          <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>🏢 Team Master</h1>
           <p style={{ fontSize:13, color:'var(--muted)', margin:'4px 0 0' }}>Create and manage teams, assign leaders and members</p>
         </div>
         <button onClick={openCreate} style={{ padding:'9px 20px', borderRadius:9, background:'var(--primary)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600 }}>+ New Team</button>
       </div>
 
-      {loading ? <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loadingâ€¦</div> : (
+      {loading ? <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loading…</div> : (
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:16 }}>
           {teams.map((t: any) => (
             <div key={t.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:20, display:'flex', flexDirection:'column', gap:10 }}>
               {/* Card header */}
               <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <div style={{ width:46, height:46, borderRadius:12, background:'linear-gradient(135deg,#06B6D4,#0891B2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, flexShrink:0 }}>ðŸ¢</div>
+                  <div style={{ width:46, height:46, borderRadius:12, background:'linear-gradient(135deg,#06B6D4,#0891B2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, flexShrink:0 }}>🏢</div>
                   <div>
                     <div style={{ fontWeight:700, fontSize:15 }}>{t.name}</div>
                     <div style={{ fontSize:12, color:'var(--muted)' }}>{t.department?.name || 'No department'}</div>
                   </div>
                 </div>
                 <div style={{ display:'flex', gap:5, flexShrink:0 }}>
-                  <button onClick={() => openMembers(t)} title="Manage members" style={{ padding:'5px 9px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12, color:'var(--primary)' }}>ðŸ‘¥</button>
-                  <button onClick={() => openEdit(t)}    title="Edit team"       style={{ padding:'5px 9px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12 }}>âœï¸</button>
-                  <button onClick={() => deleteTeam(t)}  title="Deactivate"      style={{ padding:'5px 9px', borderRadius:7, border:'1px solid #FCA5A5',        background:'transparent', cursor:'pointer', fontSize:12, color:'#EF4444' }}>ðŸ—‘ï¸</button>
+                  <button onClick={() => openMembers(t)} title="Manage members" style={{ padding:'5px 9px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12, color:'var(--primary)' }}>👥</button>
+                  <button onClick={() => openEdit(t)}    title="Edit team"       style={{ padding:'5px 9px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12 }}>✏️</button>
+                  <button onClick={() => deleteTeam(t)}  title="Deactivate"      style={{ padding:'5px 9px', borderRadius:7, border:'1px solid #FCA5A5',        background:'transparent', cursor:'pointer', fontSize:12, color:'#EF4444' }}>🗑️</button>
                 </div>
               </div>
 
@@ -1303,8 +1303,8 @@ function TeamsPage() {
 
               {/* Stats */}
               <div style={{ display:'flex', gap:16, fontSize:12, color:'var(--muted)' }}>
-                <span>ðŸ‘¥ {t._count?.members || 0} members</span>
-                <span>ðŸ“‹ {t._count?.tasks   || 0} tasks</span>
+                <span>👥 {t._count?.members || 0} members</span>
+                <span>📋 {t._count?.tasks   || 0} tasks</span>
               </div>
 
               {/* Leader */}
@@ -1314,7 +1314,7 @@ function TeamsPage() {
                     {t.leader.firstName?.[0]}{t.leader.lastName?.[0]}
                   </div>
                   <div>
-                    <div style={{ fontSize:12, fontWeight:600 }}>ðŸ‘‘ {t.leader.firstName} {t.leader.lastName}</div>
+                    <div style={{ fontSize:12, fontWeight:600 }}>👑 {t.leader.firstName} {t.leader.lastName}</div>
                     <div style={{ fontSize:10, color:'var(--muted)' }}>Team Leader</div>
                   </div>
                 </div>
@@ -1331,12 +1331,12 @@ function TeamsPage() {
         </div>
       )}
 
-      {/* â”€â”€ Create / Edit Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Create / Edit Modal ──────────────────────────────────── */}
       {(modal === 'create' || modal === 'edit') && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }} onClick={e=>e.target===e.currentTarget&&closeModal()}>
-          <div style={{ maxWidth:'calc(100vw - 32px)', width:480, background:'var(--surface)', borderRadius:16, padding:28, maxHeight:'90vh', overflowY:'auto' }}>
+          <div style={{ width:480, background:'var(--surface)', borderRadius:16, padding:28, maxHeight:'90vh', overflowY:'auto' }}>
             <h2 style={{ fontSize:18, fontWeight:700, marginBottom:20 }}>
-              {modal==='create' ? 'ðŸ¢ New Team' : `âœï¸ Edit â€” ${active?.name}`}
+              {modal==='create' ? '🏢 New Team' : `✏️ Edit — ${active?.name}`}
             </h2>
             {err && <div style={{ background:'#FEF2F2', color:'#DC2626', padding:'10px 14px', borderRadius:8, marginBottom:14, fontSize:13 }}>{err}</div>}
             <form onSubmit={submit}>
@@ -1344,20 +1344,20 @@ function TeamsPage() {
               <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required placeholder="e.g. Alpha Squad" style={inputStyle} />
 
               <label style={labelStyle}>Description</label>
-              <textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})} rows={2} placeholder="Optional descriptionâ€¦" style={{ ...inputStyle, resize:'vertical' as const }} />
+              <textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})} rows={2} placeholder="Optional description…" style={{ ...inputStyle, resize:'vertical' as const }} />
 
               <label style={labelStyle}>Department</label>
               <select value={form.departmentId} onChange={e=>setForm({...form,departmentId:e.target.value})} style={inputStyle}>
-                <option value="">â€” None â€”</option>
+                <option value="">— None —</option>
                 {depts.map((d:any) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
 
               <label style={labelStyle}>Team Leader</label>
               <select value={form.leaderId} onChange={e=>setForm({...form,leaderId:e.target.value})} style={inputStyle}>
-                <option value="">â€” No leader â€”</option>
+                <option value="">— No leader —</option>
                 {users.map((u:any) => (
                   <option key={u.id} value={u.id}>
-                    {u.firstName} {u.lastName} ({u.employeeId}) â€” {u.role?.name||u.role}
+                    {u.firstName} {u.lastName} ({u.employeeId}) — {u.role?.name||u.role}
                   </option>
                 ))}
               </select>
@@ -1365,7 +1365,7 @@ function TeamsPage() {
               <div style={{ display:'flex', gap:10, marginTop:22 }}>
                 <button type="button" onClick={closeModal} style={{ ...smBtn, flex:1, padding:12, textAlign:'center' }}>Cancel</button>
                 <button type="submit" disabled={saving} style={{ flex:1, padding:12, borderRadius:9, background:'var(--primary)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600, opacity:saving?0.7:1 }}>
-                  {saving ? 'Savingâ€¦' : modal==='create' ? 'Create Team' : 'Save Changes'}
+                  {saving ? 'Saving…' : modal==='create' ? 'Create Team' : 'Save Changes'}
                 </button>
               </div>
             </form>
@@ -1373,19 +1373,19 @@ function TeamsPage() {
         </div>
       )}
 
-      {/* â”€â”€ Manage Members Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Manage Members Modal ─────────────────────────────────── */}
       {modal === 'members' && active && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }} onClick={e=>e.target===e.currentTarget&&closeModal()}>
-          <div style={{ maxWidth:'calc(100vw - 32px)', width:520, background:'var(--surface)', borderRadius:16, padding:0, maxHeight:'88vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+          <div style={{ width:520, background:'var(--surface)', borderRadius:16, padding:0, maxHeight:'88vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
 
             {/* Modal header */}
             <div style={{ padding:'20px 24px 16px', borderBottom:'1px solid var(--border)' }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
                 <div>
-                  <h2 style={{ fontSize:18, fontWeight:700, margin:0 }}>ðŸ‘¥ Manage Members</h2>
-                  <p style={{ fontSize:13, color:'var(--muted)', margin:'3px 0 0' }}>Team: <strong>{active.name}</strong> Â· {(teamDetail?.members||[]).length} members</p>
+                  <h2 style={{ fontSize:18, fontWeight:700, margin:0 }}>👥 Manage Members</h2>
+                  <p style={{ fontSize:13, color:'var(--muted)', margin:'3px 0 0' }}>Team: <strong>{active.name}</strong> · {(teamDetail?.members||[]).length} members</p>
                 </div>
-                <button onClick={closeModal} style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'var(--muted)', lineHeight:1 }}>âœ•</button>
+                <button onClick={closeModal} style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'var(--muted)', lineHeight:1 }}>✕</button>
               </div>
               {err && <div style={{ background:'#FEF2F2', color:'#DC2626', padding:'8px 12px', borderRadius:8, marginTop:10, fontSize:13 }}>{err}</div>}
             </div>
@@ -1398,7 +1398,7 @@ function TeamsPage() {
                   Current Members ({(teamDetail?.members||[]).length})
                 </div>
                 {(teamDetail?.members||[]).length === 0 ? (
-                  <div style={{ fontSize:13, color:'var(--muted)', fontStyle:'italic' }}>No members yet â€” add some below.</div>
+                  <div style={{ fontSize:13, color:'var(--muted)', fontStyle:'italic' }}>No members yet — add some below.</div>
                 ) : (
                   <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                     {(teamDetail?.members||[]).map((m: any) => (
@@ -1412,7 +1412,7 @@ function TeamsPage() {
                         </div>
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                           {active.leaderId === m.id || active.leader?.id === m.id
-                            ? <span style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:'#FFF0F2', color:'var(--primary)', fontWeight:700 }}>ðŸ‘‘ Leader</span>
+                            ? <span style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:'#FFF0F2', color:'var(--primary)', fontWeight:700 }}>👑 Leader</span>
                             : null}
                           <button onClick={() => removeMember(m.id)} disabled={saving}
                             style={{ fontSize:11, padding:'4px 10px', borderRadius:7, border:'1px solid #FCA5A5', background:'transparent', cursor:'pointer', color:'#EF4444', fontWeight:600 }}>
@@ -1433,7 +1433,7 @@ function TeamsPage() {
                 <input
                   value={memberSearch}
                   onChange={e => setMemberSearch(e.target.value)}
-                  placeholder="Search by name or Employee IDâ€¦"
+                  placeholder="Search by name or Employee ID…"
                   style={{ ...inputStyle, marginBottom:8 }}
                 />
                 <div style={{ maxHeight:220, overflowY:'auto', border:'1px solid var(--border)', borderRadius:10 }}>
@@ -1444,7 +1444,7 @@ function TeamsPage() {
                       </div>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:13, fontWeight:600 }}>{u.firstName} {u.lastName}</div>
-                        <div style={{ fontSize:11, color:'var(--muted)' }}>{u.employeeId} Â· {u.role?.name||u.role} {u.team?.name ? `Â· ðŸ“¦ ${u.team.name}` : ''}</div>
+                        <div style={{ fontSize:11, color:'var(--muted)' }}>{u.employeeId} · {u.role?.name||u.role} {u.team?.name ? `· 📦 ${u.team.name}` : ''}</div>
                       </div>
                       <button onClick={() => addMember(u.id)} disabled={saving}
                         style={{ fontSize:11, padding:'5px 12px', borderRadius:7, border:'none', background:'var(--primary)', color:'#fff', cursor:'pointer', fontWeight:600 }}>
@@ -1471,7 +1471,7 @@ function TeamsPage() {
   );
 }
 
-// â”€â”€â”€ KPI Reports Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── KPI Reports Page ─────────────────────────────────────────
 function KpiPage() {
   const [data, setData]     = useState<any>(null);
   const [loading, setLoad]  = useState(true);
@@ -1479,7 +1479,7 @@ function KpiPage() {
     API.get('/kpi/company').then(r => { setData(r.data.data); setLoad(false); }).catch(() => setLoad(false));
   }, []);
 
-  if (loading) return <div style={{ padding:32, textAlign:'center', color:'var(--muted)' }}>Loading KPI dataâ€¦</div>;
+  if (loading) return <div style={{ padding:32, textAlign:'center', color:'var(--muted)' }}>Loading KPI data…</div>;
 
   return (
     <div style={{ padding:24 }}>
@@ -1494,7 +1494,7 @@ function KpiPage() {
       </div>
       {data?.topPerformers?.length > 0 && (
         <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:20 }}>
-          <h3 style={{ fontSize:14, fontWeight:600, marginBottom:14 }}>ðŸ† Top Performers</h3>
+          <h3 style={{ fontSize:14, fontWeight:600, marginBottom:14 }}>🏆 Top Performers</h3>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))', gap:10 }}>
             {data.topPerformers.slice(0,8).map((u: any, i: number) => (
               <div key={u.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'var(--bg)', borderRadius:10 }}>
@@ -1503,7 +1503,7 @@ function KpiPage() {
                 </div>
                 <div>
                   <div style={{ fontSize:12, fontWeight:600 }}>{u.firstName} {u.lastName}</div>
-                  <div style={{ fontSize:10, color:'var(--muted)' }}>â­ {u.totalPoints?.toLocaleString()}</div>
+                  <div style={{ fontSize:10, color:'var(--muted)' }}>⭐ {u.totalPoints?.toLocaleString()}</div>
                 </div>
               </div>
             ))}
@@ -1514,12 +1514,12 @@ function KpiPage() {
   );
 }
 
-// â”€â”€â”€ Helpers shared across master pages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helpers shared across master pages ──────────────────────
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const PRIORITY_COLORS: Record<string,string> = { CRITICAL:'#EF4444', HIGH:'#F97316', MEDIUM:'#F59E0B', LOW:'#10B981' };
 const STATUS_COLORS:   Record<string,string> = { PENDING:'#94A3B8', ACCEPTED:'var(--primary)', IN_PROGRESS:'#3B82F6', ON_HOLD:'#F59E0B', COMPLETED:'#10B981', REJECTED:'#EF4444', REOPENED:'#8B5CF6' };
 
-// â”€â”€â”€ Shift Master Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Shift Master Page ────────────────────────────────────────
 function ShiftMasterPage() {
   const [shifts,  setShifts]  = useState<any[]>([]);
   const [users,   setUsers]   = useState<any[]>([]);
@@ -1596,13 +1596,13 @@ function ShiftMasterPage() {
     <div style={{ padding:24 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
         <div>
-          <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>ðŸ• Shift Master</h1>
+          <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>🕐 Shift Master</h1>
           <p style={{ fontSize:13, color:'var(--muted)', margin:'4px 0 0' }}>Define work shifts and assign employees</p>
         </div>
         <button onClick={openCreate} style={{ padding:'9px 20px', borderRadius:9, background:'var(--primary)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600 }}>+ New Shift</button>
       </div>
 
-      {loading ? <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loadingâ€¦</div> : (
+      {loading ? <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loading…</div> : (
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))', gap:16 }}>
           {shifts.map((s: any) => (
             <div key={s.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:20 }}>
@@ -1612,9 +1612,9 @@ function ShiftMasterPage() {
                   <span style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:`${SHIFT_TYPE_COLORS[s.shiftType]||'var(--primary)'}20`, color:SHIFT_TYPE_COLORS[s.shiftType]||'var(--primary)', fontWeight:700 }}>{s.shiftType}</span>
                 </div>
                 <div style={{ display:'flex', gap:6 }}>
-                  <button onClick={() => openAssign(s)} title="Assign employee" style={{ padding:'5px 10px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12, color:'var(--primary)' }}>ðŸ‘¤+</button>
-                  <button onClick={() => openEdit(s)}   title="Edit"            style={{ padding:'5px 10px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12 }}>âœï¸</button>
-                  <button onClick={() => deleteShift(s)} title="Delete"         style={{ padding:'5px 10px', borderRadius:7, border:'1px solid #FCA5A5',        background:'transparent', cursor:'pointer', fontSize:12, color:'#EF4444' }}>ðŸ—‘ï¸</button>
+                  <button onClick={() => openAssign(s)} title="Assign employee" style={{ padding:'5px 10px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12, color:'var(--primary)' }}>👤+</button>
+                  <button onClick={() => openEdit(s)}   title="Edit"            style={{ padding:'5px 10px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12 }}>✏️</button>
+                  <button onClick={() => deleteShift(s)} title="Delete"         style={{ padding:'5px 10px', borderRadius:7, border:'1px solid #FCA5A5',        background:'transparent', cursor:'pointer', fontSize:12, color:'#EF4444' }}>🗑️</button>
                 </div>
               </div>
               <div style={{ display:'flex', gap:24, fontSize:13, marginBottom:10 }}>
@@ -1639,8 +1639,8 @@ function ShiftMasterPage() {
       {/* Create / Edit Modal */}
       {(modal === 'create' || modal === 'edit') && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }} onClick={e=>e.target===e.currentTarget&&closeModal()}>
-          <div style={{ width:500, maxWidth:'100%', background:'var(--surface)', borderRadius:16, padding:28, maxHeight:'90vh', overflowY:'auto' }}>
-            <h2 style={{ fontSize:18, fontWeight:700, marginBottom:20 }}>{modal==='create' ? 'ðŸ• New Shift' : `âœï¸ Edit â€” ${active?.name}`}</h2>
+          <div style={{ width:500, background:'var(--surface)', borderRadius:16, padding:28, maxHeight:'90vh', overflowY:'auto' }}>
+            <h2 style={{ fontSize:18, fontWeight:700, marginBottom:20 }}>{modal==='create' ? '🕐 New Shift' : `✏️ Edit — ${active?.name}`}</h2>
             {err && <div style={{ background:'#FEF2F2', color:'#DC2626', padding:'10px 14px', borderRadius:8, marginBottom:14, fontSize:13 }}>{err}</div>}
             <form onSubmit={submit}>
               <label style={labelStyle}>Shift Name *</label>
@@ -1683,7 +1683,7 @@ function ShiftMasterPage() {
               <div style={{ display:'flex', gap:10, marginTop:20 }}>
                 <button type="button" onClick={closeModal} style={{ ...smBtn, flex:1, padding:12 }}>Cancel</button>
                 <button type="submit" disabled={saving} style={{ flex:1, padding:12, borderRadius:9, background:'var(--primary)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600, opacity:saving?.7:1 }}>
-                  {saving ? 'Savingâ€¦' : modal==='create' ? 'Create Shift' : 'Save Changes'}
+                  {saving ? 'Saving…' : modal==='create' ? 'Create Shift' : 'Save Changes'}
                 </button>
               </div>
             </form>
@@ -1694,11 +1694,11 @@ function ShiftMasterPage() {
       {/* Assign Employee Modal */}
       {modal === 'assign' && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }} onClick={e=>e.target===e.currentTarget&&closeModal()}>
-          <div style={{ maxWidth:'calc(100vw - 32px)', width:460, background:'var(--surface)', borderRadius:16, padding:28, maxHeight:'80vh', overflowY:'auto' }}>
-            <h2 style={{ fontSize:18, fontWeight:700, marginBottom:6 }}>ðŸ‘¤ Assign to Shift</h2>
-            <p style={{ fontSize:13, color:'var(--muted)', marginBottom:16 }}>Shift: <strong>{active?.name}</strong> ({active?.startTime}â€“{active?.endTime})</p>
+          <div style={{ width:460, background:'var(--surface)', borderRadius:16, padding:28, maxHeight:'80vh', overflowY:'auto' }}>
+            <h2 style={{ fontSize:18, fontWeight:700, marginBottom:6 }}>👤 Assign to Shift</h2>
+            <p style={{ fontSize:13, color:'var(--muted)', marginBottom:16 }}>Shift: <strong>{active?.name}</strong> ({active?.startTime}–{active?.endTime})</p>
             {err && <div style={{ background:'#FEF2F2', color:'#DC2626', padding:'10px 14px', borderRadius:8, marginBottom:14, fontSize:13 }}>{err}</div>}
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search employeeâ€¦" style={{ ...inputStyle, marginBottom:10 }} />
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search employee…" style={{ ...inputStyle, marginBottom:10 }} />
             <div style={{ maxHeight:260, overflowY:'auto', border:'1px solid var(--border)', borderRadius:10 }}>
               {filteredUsers.slice(0,30).map((u: any) => (
                 <label key={u.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', cursor:'pointer', background: assignUserId===u.id ? 'var(--primary-bg)' : 'transparent', borderBottom:'1px solid var(--border)' }}>
@@ -1706,7 +1706,7 @@ function ShiftMasterPage() {
                   <div style={{ width:30, height:30, borderRadius:'50%', background:'var(--primary)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:11, fontWeight:700 }}>{u.firstName?.[0]}{u.lastName?.[0]}</div>
                   <div>
                     <div style={{ fontSize:13, fontWeight:600 }}>{u.firstName} {u.lastName}</div>
-                    <div style={{ fontSize:11, color:'var(--muted)' }}>{u.employeeId} Â· {u.role?.name||u.role} Â· {u.shift?.name ? `Current: ${u.shift.name}` : 'No shift'}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)' }}>{u.employeeId} · {u.role?.name||u.role} · {u.shift?.name ? `Current: ${u.shift.name}` : 'No shift'}</div>
                   </div>
                 </label>
               ))}
@@ -1715,7 +1715,7 @@ function ShiftMasterPage() {
             <div style={{ display:'flex', gap:10, marginTop:18 }}>
               <button type="button" onClick={closeModal} style={{ ...smBtn, flex:1, padding:12 }}>Cancel</button>
               <button onClick={assignShift} disabled={!assignUserId||saving} style={{ flex:1, padding:12, borderRadius:9, background:'var(--primary)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600, opacity:(!assignUserId||saving)?.6:1 }}>
-                {saving ? 'Assigningâ€¦' : 'Assign Shift'}
+                {saving ? 'Assigning…' : 'Assign Shift'}
               </button>
             </div>
           </div>
@@ -1725,7 +1725,7 @@ function ShiftMasterPage() {
   );
 }
 
-// â”€â”€â”€ Plant Master Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Plant Master Page ────────────────────────────────────────
 function PlantMasterPage() {
   const [plants,  setPlants]  = useState<any[]>([]);
   const [users,   setUsers]   = useState<any[]>([]);
@@ -1791,37 +1791,37 @@ function PlantMasterPage() {
     <div style={{ padding:24 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
         <div>
-          <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>ðŸ­ Plant Master</h1>
+          <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>🏭 Plant Master</h1>
           <p style={{ fontSize:13, color:'var(--muted)', margin:'4px 0 0' }}>Manage work locations and assign employees</p>
         </div>
         <button onClick={openCreate} style={{ padding:'9px 20px', borderRadius:9, background:'var(--primary)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600 }}>+ New Plant</button>
       </div>
 
-      {loading ? <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loadingâ€¦</div> : (
+      {loading ? <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loading…</div> : (
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:16 }}>
           {plants.map((p: any) => (
             <div key={p.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:20, display:'flex', flexDirection:'column', gap:10 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <div style={{ width:44, height:44, borderRadius:12, background:'#FEF3C7', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22 }}>ðŸ­</div>
+                  <div style={{ width:44, height:44, borderRadius:12, background:'#FEF3C7', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22 }}>🏭</div>
                   <div>
                     <div style={{ fontWeight:700, fontSize:15 }}>{p.name}</div>
                     {p.code && <span style={{ fontSize:11, fontFamily:'monospace', background:'var(--bg)', padding:'1px 6px', borderRadius:4, color:'var(--muted)' }}>{p.code}</span>}
                   </div>
                 </div>
                 <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-                  <button onClick={() => openAssign(p)} title="Assign employee" style={{ padding:'5px 10px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12, color:'var(--primary)' }}>ðŸ‘¤+</button>
-                  <button onClick={() => openEdit(p)} title="Edit"              style={{ padding:'5px 10px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12 }}>âœï¸</button>
-                  <button onClick={() => deletePlant(p)} title="Delete"         style={{ padding:'5px 10px', borderRadius:7, border:'1px solid #FCA5A5',        background:'transparent', cursor:'pointer', fontSize:12, color:'#EF4444' }}>ðŸ—‘ï¸</button>
+                  <button onClick={() => openAssign(p)} title="Assign employee" style={{ padding:'5px 10px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12, color:'var(--primary)' }}>👤+</button>
+                  <button onClick={() => openEdit(p)} title="Edit"              style={{ padding:'5px 10px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12 }}>✏️</button>
+                  <button onClick={() => deletePlant(p)} title="Delete"         style={{ padding:'5px 10px', borderRadius:7, border:'1px solid #FCA5A5',        background:'transparent', cursor:'pointer', fontSize:12, color:'#EF4444' }}>🗑️</button>
                 </div>
               </div>
               {(p.city || p.address) && (
                 <div style={{ fontSize:13, color:'var(--muted)' }}>
-                  ðŸ“ {[p.city, p.address].filter(Boolean).join(', ')}
+                  📍 {[p.city, p.address].filter(Boolean).join(', ')}
                 </div>
               )}
               {p.description && <p style={{ fontSize:12, color:'var(--muted)', margin:0, lineHeight:1.5 }}>{p.description}</p>}
-              <div style={{ fontSize:12, color:'var(--muted)' }}>ðŸ‘¥ {p._count?.users ?? 0} employees assigned</div>
+              <div style={{ fontSize:12, color:'var(--muted)' }}>👥 {p._count?.users ?? 0} employees assigned</div>
             </div>
           ))}
           {plants.length === 0 && <div style={{ gridColumn:'1/-1', textAlign:'center', padding:60, color:'var(--muted)' }}>No plants yet. Click "New Plant" to create one.</div>}
@@ -1831,12 +1831,12 @@ function PlantMasterPage() {
       {/* Create / Edit Modal */}
       {(modal === 'create' || modal === 'edit') && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }} onClick={e=>e.target===e.currentTarget&&closeModal()}>
-          <div style={{ maxWidth:'calc(100vw - 32px)', width:460, background:'var(--surface)', borderRadius:16, padding:28 }}>
-            <h2 style={{ fontSize:18, fontWeight:700, marginBottom:20 }}>{modal==='create' ? 'ðŸ­ New Plant' : `âœï¸ Edit â€” ${active?.name}`}</h2>
+          <div style={{ width:460, background:'var(--surface)', borderRadius:16, padding:28 }}>
+            <h2 style={{ fontSize:18, fontWeight:700, marginBottom:20 }}>{modal==='create' ? '🏭 New Plant' : `✏️ Edit — ${active?.name}`}</h2>
             {err && <div style={{ background:'#FEF2F2', color:'#DC2626', padding:'10px 14px', borderRadius:8, marginBottom:14, fontSize:13 }}>{err}</div>}
             <form onSubmit={submit}>
               <label style={labelStyle}>Plant Name *</label>
-              <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required placeholder="e.g. Plant Alpha â€” North" style={inputStyle} />
+              <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required placeholder="e.g. Plant Alpha — North" style={inputStyle} />
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
                   <label style={labelStyle}>Plant Code</label>
@@ -1848,13 +1848,13 @@ function PlantMasterPage() {
                 </div>
               </div>
               <label style={labelStyle}>Address</label>
-              <input value={form.address} onChange={e=>setForm({...form,address:e.target.value})} placeholder="Full addressâ€¦" style={inputStyle} />
+              <input value={form.address} onChange={e=>setForm({...form,address:e.target.value})} placeholder="Full address…" style={inputStyle} />
               <label style={labelStyle}>Description</label>
               <textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})} rows={2} style={{ ...inputStyle, resize:'vertical' as const }} />
               <div style={{ display:'flex', gap:10, marginTop:20 }}>
                 <button type="button" onClick={closeModal} style={{ ...smBtn, flex:1, padding:12 }}>Cancel</button>
                 <button type="submit" disabled={saving} style={{ flex:1, padding:12, borderRadius:9, background:'var(--primary)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600, opacity:saving?.7:1 }}>
-                  {saving ? 'Savingâ€¦' : modal==='create' ? 'Create Plant' : 'Save Changes'}
+                  {saving ? 'Saving…' : modal==='create' ? 'Create Plant' : 'Save Changes'}
                 </button>
               </div>
             </form>
@@ -1865,11 +1865,11 @@ function PlantMasterPage() {
       {/* Assign Employee Modal */}
       {modal === 'assign' && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }} onClick={e=>e.target===e.currentTarget&&closeModal()}>
-          <div style={{ maxWidth:'calc(100vw - 32px)', width:460, background:'var(--surface)', borderRadius:16, padding:28, maxHeight:'80vh', overflowY:'auto' }}>
-            <h2 style={{ fontSize:18, fontWeight:700, marginBottom:6 }}>ðŸ‘¤ Assign to Plant</h2>
+          <div style={{ width:460, background:'var(--surface)', borderRadius:16, padding:28, maxHeight:'80vh', overflowY:'auto' }}>
+            <h2 style={{ fontSize:18, fontWeight:700, marginBottom:6 }}>👤 Assign to Plant</h2>
             <p style={{ fontSize:13, color:'var(--muted)', marginBottom:16 }}>Plant: <strong>{active?.name}</strong></p>
             {err && <div style={{ background:'#FEF2F2', color:'#DC2626', padding:'10px 14px', borderRadius:8, marginBottom:14, fontSize:13 }}>{err}</div>}
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search employeeâ€¦" style={{ ...inputStyle, marginBottom:10 }} />
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search employee…" style={{ ...inputStyle, marginBottom:10 }} />
             <div style={{ maxHeight:260, overflowY:'auto', border:'1px solid var(--border)', borderRadius:10 }}>
               {filteredUsers.slice(0,30).map((u: any) => (
                 <label key={u.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', cursor:'pointer', background: assignUserId===u.id ? 'var(--primary-bg)' : 'transparent', borderBottom:'1px solid var(--border)' }}>
@@ -1877,7 +1877,7 @@ function PlantMasterPage() {
                   <div style={{ width:30, height:30, borderRadius:'50%', background:'var(--primary)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:11, fontWeight:700 }}>{u.firstName?.[0]}{u.lastName?.[0]}</div>
                   <div>
                     <div style={{ fontSize:13, fontWeight:600 }}>{u.firstName} {u.lastName}</div>
-                    <div style={{ fontSize:11, color:'var(--muted)' }}>{u.employeeId} Â· {u.plant?.name ? `Current: ${u.plant.name}` : 'No plant'}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)' }}>{u.employeeId} · {u.plant?.name ? `Current: ${u.plant.name}` : 'No plant'}</div>
                   </div>
                 </label>
               ))}
@@ -1886,7 +1886,7 @@ function PlantMasterPage() {
             <div style={{ display:'flex', gap:10, marginTop:18 }}>
               <button type="button" onClick={closeModal} style={{ ...smBtn, flex:1, padding:12 }}>Cancel</button>
               <button onClick={assignPlant} disabled={!assignUserId||saving} style={{ flex:1, padding:12, borderRadius:9, background:'var(--primary)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600, opacity:(!assignUserId||saving)?.6:1 }}>
-                {saving ? 'Assigningâ€¦' : 'Assign Plant'}
+                {saving ? 'Assigning…' : 'Assign Plant'}
               </button>
             </div>
           </div>
@@ -1896,7 +1896,7 @@ function PlantMasterPage() {
   );
 }
 
-// â”€â”€â”€ My Tasks Page (Employee task completion view) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── My Tasks Page (Employee task completion view) ────────────
 function MyTasksPage() {
   const { user } = useAuth();
   const [tasks,    setTasks]   = useState<any[]>([]);
@@ -1929,22 +1929,22 @@ function MyTasksPage() {
   };
 
   const ACTIONS: Record<string, {label:string; status:string; color:string}[]> = {
-    PENDING:     [{ label:'âœ… Accept',       status:'ACCEPTED',    color:'var(--primary)' }, { label:'âŒ Reject', status:'REJECTED', color:'#EF4444' }],
-    ACCEPTED:    [{ label:'â–¶ï¸ Start Work',   status:'IN_PROGRESS', color:'#3B82F6' }],
-    IN_PROGRESS: [{ label:'âœ… Mark Complete', status:'COMPLETED',   color:'#10B981' }, { label:'â¸ï¸ Hold', status:'ON_HOLD', color:'#F59E0B' }],
-    ON_HOLD:     [{ label:'â–¶ï¸ Resume',       status:'IN_PROGRESS', color:'#3B82F6' }],
-    REOPENED:    [{ label:'â–¶ï¸ Start Work',   status:'IN_PROGRESS', color:'#3B82F6' }],
+    PENDING:     [{ label:'✅ Accept',       status:'ACCEPTED',    color:'var(--primary)' }, { label:'❌ Reject', status:'REJECTED', color:'#EF4444' }],
+    ACCEPTED:    [{ label:'▶️ Start Work',   status:'IN_PROGRESS', color:'#3B82F6' }],
+    IN_PROGRESS: [{ label:'✅ Mark Complete', status:'COMPLETED',   color:'#10B981' }, { label:'⏸️ Hold', status:'ON_HOLD', color:'#F59E0B' }],
+    ON_HOLD:     [{ label:'▶️ Resume',       status:'IN_PROGRESS', color:'#3B82F6' }],
+    REOPENED:    [{ label:'▶️ Start Work',   status:'IN_PROGRESS', color:'#3B82F6' }],
   };
 
-  const fmt = (d: string) => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : 'â€”';
+  const fmt = (d: string) => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
   const isOverdue = (t: any) => t.dueDate && new Date(t.dueDate) < new Date() && !['COMPLETED','REJECTED'].includes(t.status);
 
   return (
     <div style={{ padding:24 }}>
       <div style={{ marginBottom:24 }}>
-        <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>âœ… My Tasks</h1>
+        <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>✅ My Tasks</h1>
         <p style={{ fontSize:13, color:'var(--muted)', margin:'4px 0 0' }}>
-          Your assigned work â€” {active.length} active, {completed.length} completed
+          Your assigned work — {active.length} active, {completed.length} completed
         </p>
       </div>
 
@@ -1963,7 +1963,7 @@ function MyTasksPage() {
         ))}
       </div>
 
-      {loading ? <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loading tasksâ€¦</div> : (
+      {loading ? <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loading tasks…</div> : (
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
           {shown.map((t: any) => (
             <div key={t.id} style={{ background:'var(--surface)', border:`1px solid ${isOverdue(t)?'#FCA5A5':'var(--border)'}`, borderRadius:14, padding:20 }}>
@@ -1972,15 +1972,15 @@ function MyTasksPage() {
                   <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:6, flexWrap:'wrap' }}>
                     <span style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:`${STATUS_COLORS[t.status]}20`, color:STATUS_COLORS[t.status], fontWeight:700 }}>{t.status.replace('_',' ')}</span>
                     <span style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:`${PRIORITY_COLORS[t.priority]}20`, color:PRIORITY_COLORS[t.priority], fontWeight:700 }}>{t.priority}</span>
-                    {isOverdue(t) && <span style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:'#FEF2F2', color:'#EF4444', fontWeight:700 }}>âš ï¸ OVERDUE</span>}
-                    {t.team && <span style={{ fontSize:11, color:'var(--muted)' }}>ðŸ¢ {t.team.name}</span>}
+                    {isOverdue(t) && <span style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:'#FEF2F2', color:'#EF4444', fontWeight:700 }}>⚠️ OVERDUE</span>}
+                    {t.team && <span style={{ fontSize:11, color:'var(--muted)' }}>🏢 {t.team.name}</span>}
                   </div>
                   <div style={{ fontWeight:700, fontSize:15, marginBottom:4 }}>{t.title}</div>
                   {t.description && <p style={{ fontSize:13, color:'var(--muted)', margin:'0 0 6px', lineHeight:1.5, overflow:'hidden', textOverflow:'ellipsis', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' as any }}>{t.description}</p>}
                   <div style={{ display:'flex', gap:16, fontSize:12, color:'var(--muted)' }}>
-                    <span>ðŸ“… Due: {fmt(t.dueDate)}</span>
-                    {t.estimatedHours && <span>â±ï¸ Est: {t.estimatedHours}h</span>}
-                    <span>ðŸ’¬ {t._count?.comments||0} comments</span>
+                    <span>📅 Due: {fmt(t.dueDate)}</span>
+                    {t.estimatedHours && <span>⏱️ Est: {t.estimatedHours}h</span>}
+                    <span>💬 {t._count?.comments||0} comments</span>
                   </div>
                 </div>
 
@@ -1991,7 +1991,7 @@ function MyTasksPage() {
                       <button key={a.status} disabled={!!updating} onClick={() => updateStatus(t.id, a.status)}
                         style={{ padding:'8px 16px', borderRadius:8, border:'none', cursor:'pointer', fontSize:12, fontWeight:700,
                           background: a.color, color:'#fff', opacity: updating===t.id ? .6 : 1, whiteSpace:'nowrap' }}>
-                        {updating===t.id ? 'â€¦' : a.label}
+                        {updating===t.id ? '…' : a.label}
                       </button>
                     ))}
                   </div>
@@ -2001,7 +2001,7 @@ function MyTasksPage() {
           ))}
           {shown.length === 0 && (
             <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>
-              <div style={{ fontSize:48, marginBottom:12 }}>{tab==='active' ? 'ðŸŽ‰' : 'ðŸ“­'}</div>
+              <div style={{ fontSize:48, marginBottom:12 }}>{tab==='active' ? '🎉' : '📭'}</div>
               <div style={{ fontSize:16, fontWeight:600 }}>{tab==='active' ? 'All caught up!' : 'No completed tasks yet'}</div>
               <div style={{ fontSize:13, marginTop:4 }}>{tab==='active' ? 'No active tasks assigned to you.' : 'Completed tasks will appear here.'}</div>
             </div>
@@ -2012,59 +2012,59 @@ function MyTasksPage() {
   );
 }
 
-// â”€â”€â”€ Rights Master Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Rights Master Page ───────────────────────────────────────
 interface FeatItem  { label: string; desc: string; fullKey: string; viewKey?: string }
 interface FeatModule { cat: string; icon: string; items: FeatItem[] }
 
 const MODULES: FeatModule[] = [
-  { cat:'Gatepass', icon:'ðŸšª', items:[
+  { cat:'Gatepass', icon:'🚪', items:[
     { label:'My Requests',    desc:'Submit & track own gatepass requests',      fullKey:'gatepass.request',   viewKey:'gatepass.request.view'   },
     { label:'Approvals',      desc:'Approve or reject team gatepass requests',  fullKey:'gatepass.approvals', viewKey:'gatepass.approvals.view' },
     { label:'Gate Terminal',  desc:'Mark employee gate exits and returns',       fullKey:'gatepass.terminal',  viewKey:'gatepass.terminal.view'  },
     { label:'HR Dashboard',   desc:'Full gatepass movement history report',      fullKey:'gatepass.hr' },
   ]},
-  { cat:'Employees', icon:'ðŸ‘¥', items:[
+  { cat:'Employees', icon:'👥', items:[
     { label:'View Employees',      desc:'See employee list and profiles',        fullKey:'users.view'        },
     { label:'Bulk Upload',         desc:'Upload employees via Excel file',       fullKey:'users.bulk_upload' },
     { label:'Create Employee',     desc:'Add new employees individually',        fullKey:'users.create'      },
     { label:'Edit Employee',       desc:'Edit employee details & assignments',   fullKey:'users.edit'        },
     { label:'Deactivate / Delete', desc:'Suspend or remove employees',           fullKey:'users.delete'      },
   ]},
-  { cat:'Tasks', icon:'âœ…', items:[
+  { cat:'Tasks', icon:'✅', items:[
     { label:'View All Tasks', desc:'See tasks of all team members',    fullKey:'tasks.view_all', viewKey:'tasks.view_all.view' },
     { label:'Create Tasks',   desc:'Create & assign tasks to team',    fullKey:'tasks.create'   },
     { label:'Edit Tasks',     desc:'Edit / update any task',           fullKey:'tasks.edit'     },
     { label:'Delete Tasks',   desc:'Delete tasks permanently',         fullKey:'tasks.delete'   },
   ]},
-  { cat:'Attendance', icon:'ðŸ“‹', items:[
+  { cat:'Attendance', icon:'📋', items:[
     { label:'View Attendance', desc:'View attendance records',          fullKey:'attendance.view'   },
     { label:'Edit Attendance', desc:'Correct or modify attendance',     fullKey:'attendance.manage', viewKey:'attendance.manage.view' },
   ]},
-  { cat:'Leave', icon:'ðŸŒ´', items:[
+  { cat:'Leave', icon:'🌴', items:[
     { label:'View Leave Requests', desc:'See all employee leave applications',    fullKey:'leaves.view'    },
     { label:'Approve Leaves',      desc:'Approve or reject leave requests',       fullKey:'leaves.approve', viewKey:'leaves.approve.view' },
   ]},
-  { cat:'Reports', icon:'ðŸ“Š', items:[
-    { label:'KPI Reports', desc:'View KPI & productivity reports', fullKey:'kpi.view'         },
+  { cat:'Reports', icon:'📊', items:[
+    { label:'KPI Reports', desc:'View KPI & productivity reports',  fullKey:'kpi.view'         },
     { label:'Leaderboard', desc:'View employee points leaderboard', fullKey:'leaderboard.view' },
   ]},
-  { cat:'Announcements', icon:'ðŸ“¢', items:[
+  { cat:'Announcements', icon:'📢', items:[
     { label:'View Announcements', desc:'See company announcements',          fullKey:'announcements.view'   },
     { label:'Post Announcements', desc:'Create company-wide announcements',  fullKey:'announcements.create' },
   ]},
-  { cat:'Setup', icon:'âš™ï¸', items:[
+  { cat:'Setup', icon:'⚙️', items:[
     { label:'Departments', desc:'Create & manage departments', fullKey:'departments.manage' },
     { label:'Teams',       desc:'Create & manage teams',       fullKey:'teams.manage'       },
     { label:'Shifts',      desc:'Create & assign shifts',      fullKey:'shifts.manage'      },
     { label:'Plants',      desc:'Manage plant locations',      fullKey:'plants.manage'      },
   ]},
-  { cat:'System', icon:'ðŸ”', items:[
+  { cat:'System', icon:'🔐', items:[
     { label:'Audit Logs',    desc:'View system audit trail',          fullKey:'audit.view'   },
     { label:'Rights Master', desc:'Edit role rights & permissions',   fullKey:'roles.manage' },
   ]},
 ];
 
-// Flatten all keys (used by API summary display)
+// Flatten all keys (for API summary display and backward compat)
 const ALL_PERMISSIONS = MODULES.flatMap(m => m.items.flatMap(i => [
   { cat:m.cat, key:i.fullKey, label:i.label },
   ...(i.viewKey ? [{ cat:m.cat, key:i.viewKey, label:`${i.label} (View Only)` }] : []),
@@ -2078,17 +2078,17 @@ function getLevel(perms: string[], item: FeatItem): AccessLevel {
   return 'none';
 }
 function applyLevel(perms: string[], item: FeatItem, level: AccessLevel): string[] {
-  let p = perms.filter(k => k !== item.fullKey && k !== (item.viewKey||'__none__'));
+  let p = perms.filter(k => k !== item.fullKey && k !== (item.viewKey || '__none__'));
   if (level === 'full') p = [...p, item.fullKey];
   if (level === 'view' && item.viewKey) p = [...p, item.viewKey];
   return p;
 }
 
-// â”€â”€ Shared permission edit modal (used by both By-Role and By-Employee tabs) â”€â”€
+// ── Shared permission edit modal ──────────────────────────────
 function PermEditModal({ title, subtitle, draft, setDraft, rolePerms, saving, err, onSave, onClose }: {
   title: string; subtitle: string;
   draft: string[]; setDraft: (d: string[]) => void;
-  rolePerms: string[];   // highlighted as "inherited from role" (read-only hint)
+  rolePerms: string[];
   saving: boolean; err: string;
   onSave: () => void; onClose: () => void;
 }) {
@@ -2100,22 +2100,22 @@ function PermEditModal({ title, subtitle, draft, setDraft, rolePerms, saving, er
       style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.55)', display:'flex', alignItems:'flex-start', justifyContent:'center', zIndex:200, overflowY:'auto', padding:'28px 16px' }}
       onClick={e => e.target===e.currentTarget && onClose()}
     >
-      <div style={{ width:700, maxWidth:'100%', background:'var(--surface)', borderRadius:16, padding:28 }}>
+      <div style={{ width:700, maxWidth:'calc(100vw - 32px)', background:'var(--surface)', borderRadius:16, padding:28 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
           <div>
             <h2 style={{ fontSize:18, fontWeight:700, margin:0 }}>{title}</h2>
             <p style={{ fontSize:13, color:'var(--muted)', margin:'4px 0 0' }}>{subtitle}</p>
           </div>
-          <button onClick={onClose} style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--muted)', lineHeight:1 }}>âœ•</button>
+          <button onClick={onClose} style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--muted)', lineHeight:1 }}>✕</button>
         </div>
 
         {err && <div style={{ background:'#FEF2F2', color:'#DC2626', padding:'10px 14px', borderRadius:8, marginBottom:12, fontSize:13 }}>{err}</div>}
 
         <div style={{ display:'flex', gap:16, padding:'8px 14px', background:'var(--bg)', borderRadius:10, fontSize:12, marginBottom:20, color:'var(--muted)', flexWrap:'wrap' }}>
-          <span><strong style={{ color:'#6B7280' }}>âœ— None</strong> â€” hidden</span>
-          <span><strong style={{ color:'#2563EB' }}>ðŸ‘ View</strong> â€” see only</span>
-          <span><strong style={{ color:'#059669' }}>âœ… Full</strong> â€” full control</span>
-          {rolePerms.length > 0 && <span style={{ marginLeft:'auto', color:'#9333EA', fontWeight:600 }}>ðŸ”— = from role</span>}
+          <span><strong style={{ color:'#6B7280' }}>✗ None</strong> — hidden</span>
+          <span><strong style={{ color:'#2563EB' }}>👁 View</strong> — see only</span>
+          <span><strong style={{ color:'#059669' }}>✅ Full</strong> — full control</span>
+          {rolePerms.length > 0 && <span style={{ marginLeft:'auto', color:'#9333EA', fontWeight:600 }}>🔗 = from role</span>}
         </div>
 
         {MODULES.map(mod => (
@@ -2125,11 +2125,10 @@ function PermEditModal({ title, subtitle, draft, setDraft, rolePerms, saving, er
             </div>
             <div style={{ border:'1px solid var(--border)', borderRadius:10, overflow:'hidden' }}>
               {mod.items.map((item, idx) => {
-                const level      = getLevel(draft, item);
-                const roleLevel  = getLevel(rolePerms, item);
-                const fromRole   = roleLevel !== 'none';
-                const isLast     = idx === mod.items.length - 1;
-                const rowBg      = level==='full' ? '#F0FDF4' : level==='view' ? '#EFF6FF' : 'var(--surface)';
+                const level     = getLevel(draft, item);
+                const fromRole  = getLevel(rolePerms, item) !== 'none';
+                const isLast    = idx === mod.items.length - 1;
+                const rowBg     = level==='full' ? '#F0FDF4' : level==='view' ? '#EFF6FF' : 'var(--surface)';
                 return (
                   <div key={item.fullKey} style={{
                     display:'flex', alignItems:'center', justifyContent:'space-between', gap:12,
@@ -2140,7 +2139,7 @@ function PermEditModal({ title, subtitle, draft, setDraft, rolePerms, saving, er
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                         <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{item.label}</span>
-                        {fromRole && <span style={{ fontSize:10, padding:'1px 6px', borderRadius:4, background:'#F3E8FF', color:'#9333EA', fontWeight:700 }}>ðŸ”— role</span>}
+                        {fromRole && <span style={{ fontSize:10, padding:'1px 6px', borderRadius:4, background:'#F3E8FF', color:'#9333EA', fontWeight:700 }}>🔗 role</span>}
                       </div>
                       <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>{item.desc}</div>
                     </div>
@@ -2150,21 +2149,21 @@ function PermEditModal({ title, subtitle, draft, setDraft, rolePerms, saving, er
                         border: level==='none' ? '2px solid #9CA3AF' : '1.5px solid var(--border)',
                         background: level==='none' ? '#F3F4F6' : 'transparent',
                         color: level==='none' ? '#374151' : 'var(--muted)',
-                      }}>âœ— None</button>
+                      }}>✗ None</button>
                       {item.viewKey && (
                         <button onClick={()=>setLevel(item,'view')} style={{
                           padding:'5px 10px', borderRadius:6, cursor:'pointer', fontSize:11, fontWeight:700,
                           border: level==='view' ? '2px solid #2563EB' : '1.5px solid var(--border)',
                           background: level==='view' ? '#DBEAFE' : 'transparent',
                           color: level==='view' ? '#1D4ED8' : 'var(--muted)',
-                        }}>ðŸ‘ View</button>
+                        }}>👁 View</button>
                       )}
                       <button onClick={()=>setLevel(item,'full')} style={{
                         padding:'5px 10px', borderRadius:6, cursor:'pointer', fontSize:11, fontWeight:700,
                         border: level==='full' ? '2px solid #059669' : '1.5px solid var(--border)',
                         background: level==='full' ? '#D1FAE5' : 'transparent',
                         color: level==='full' ? '#065F46' : 'var(--muted)',
-                      }}>âœ… Full</button>
+                      }}>✅ Full</button>
                     </div>
                   </div>
                 );
@@ -2180,7 +2179,7 @@ function PermEditModal({ title, subtitle, draft, setDraft, rolePerms, saving, er
             color:'#fff', border:'none', cursor:'pointer', fontWeight:700, fontSize:14,
             opacity: saving ? .7 : 1,
           }}>
-            {saving ? 'Savingâ€¦' : 'ðŸ’¾ Save Rights'}
+            {saving ? 'Saving…' : '💾 Save Rights'}
           </button>
         </div>
       </div>
@@ -2188,7 +2187,7 @@ function PermEditModal({ title, subtitle, draft, setDraft, rolePerms, saving, er
   );
 }
 
-// â”€â”€ By-Role tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── By-Role tab ────────────────────────────────────────────────
 function ByRoleTab() {
   const { user: me } = useAuth();
   const [roles,   setRoles]   = useState<any[]>([]);
@@ -2210,7 +2209,7 @@ function ByRoleTab() {
   const openEdit = (r: any) => {
     const raw: string[] = Array.isArray(r.permissions) ? r.permissions
       : (typeof r.permissions === 'string' ? (() => { try { return JSON.parse(r.permissions); } catch { return []; } })() : []);
-    setDraft(raw.includes('*') ? allItems.flatMap(i=>[i.fullKey,...(i.viewKey?[i.viewKey]:[])] ) : raw);
+    setDraft(raw.includes('*') ? allItems.flatMap(i=>[i.fullKey,...(i.viewKey?[i.viewKey]:[])]) : raw);
     setEditing(r); setErr('');
   };
 
@@ -2223,7 +2222,7 @@ function ByRoleTab() {
     finally { setSaving(false); }
   };
 
-  if (loading) return <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loadingâ€¦</div>;
+  if (loading) return <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>Loading…</div>;
 
   return (
     <>
@@ -2235,7 +2234,6 @@ function ByRoleTab() {
           const hasAll  = perms.includes('*');
           const fullCnt = allItems.filter(i => hasAll || perms.includes(i.fullKey)).length;
           const viewCnt = allItems.filter(i => i.viewKey && !perms.includes(i.fullKey) && perms.includes(i.viewKey)).length;
-
           return (
             <div key={r.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:20 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
@@ -2246,24 +2244,24 @@ function ByRoleTab() {
                     {r.name.replace(/_/g,' ')}
                   </span>
                   <span style={{ fontSize:14, fontWeight:600 }}>{r.displayName}</span>
-                  <span style={{ fontSize:12, color:'var(--muted)' }}>Â· {r._count?.users ?? 0} users</span>
+                  <span style={{ fontSize:12, color:'var(--muted)' }}>· {r._count?.users ?? 0} users</span>
                 </div>
                 {!isSuperAdmin && me?.role === 'SUPER_ADMIN' && (
                   <button onClick={()=>openEdit(r)}
                     style={{ padding:'7px 18px', borderRadius:8, border:'1.5px solid var(--primary)', background:'transparent', cursor:'pointer', fontSize:12, fontWeight:700, color:'var(--primary)' }}>
-                    âœï¸ Edit Rights
+                    ✏️ Edit Rights
                   </button>
                 )}
               </div>
               <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                 {isSuperAdmin || hasAll ? (
                   <span style={{ fontSize:12, padding:'3px 10px', borderRadius:6, background:'#D1FAE5', color:'#065F46', fontWeight:700 }}>
-                    â­ All {allItems.length} features â€” Full Access
+                    ⭐ All {allItems.length} features — Full Access
                   </span>
                 ) : (
                   <>
-                    {fullCnt > 0 && <span style={{ fontSize:12, padding:'3px 10px', borderRadius:6, background:'#D1FAE5', color:'#065F46', fontWeight:600 }}>âœ… {fullCnt} Full Access</span>}
-                    {viewCnt > 0 && <span style={{ fontSize:12, padding:'3px 10px', borderRadius:6, background:'#DBEAFE', color:'#1D4ED8', fontWeight:600 }}>ðŸ‘ {viewCnt} View Only</span>}
+                    {fullCnt > 0 && <span style={{ fontSize:12, padding:'3px 10px', borderRadius:6, background:'#D1FAE5', color:'#065F46', fontWeight:600 }}>✅ {fullCnt} Full Access</span>}
+                    {viewCnt > 0 && <span style={{ fontSize:12, padding:'3px 10px', borderRadius:6, background:'#DBEAFE', color:'#1D4ED8', fontWeight:600 }}>👁 {viewCnt} View Only</span>}
                     {fullCnt===0 && viewCnt===0 && <span style={{ fontSize:12, color:'var(--muted)' }}>Basic access only</span>}
                   </>
                 )}
@@ -2272,11 +2270,10 @@ function ByRoleTab() {
           );
         })}
       </div>
-
       {editing && (
         <PermEditModal
-          title={`ðŸ” Edit Rights â€” ${editing.displayName}`}
-          subtitle="Set each feature: No Access Â· View Only Â· Full Access"
+          title={`🔐 Edit Rights — ${editing.displayName}`}
+          subtitle="Set each feature: No Access · View Only · Full Access"
           draft={draft} setDraft={setDraft}
           rolePerms={[]}
           saving={saving} err={err}
@@ -2287,18 +2284,27 @@ function ByRoleTab() {
   );
 }
 
-// â”€â”€ By-Employee tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── useDebounce hook ───────────────────────────────────────────
+function useDebounce(fn: ()=>void, delay: number, deps: any[]) {
+  useEffect(() => {
+    const t = setTimeout(fn, delay);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+}
+
+// ── By-Employee tab ────────────────────────────────────────────
 function ByEmployeeTab() {
   const { user: me } = useAuth();
   const [search,    setSearch]    = useState('');
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading,   setLoading]   = useState(false);
-  const [editing,   setEditing]   = useState<any>(null);   // { user, rolePerms, extraPerms }
+  const [editing,   setEditing]   = useState<any>(null);
   const [draft,     setDraft]     = useState<string[]>([]);
   const [saving,    setSaving]    = useState(false);
   const [err,       setErr]       = useState('');
 
-  const searchEmployees = async (q: string) => {
+  const fetchEmployees = async (q: string) => {
     setLoading(true);
     try {
       const r = await API.get('/users', { params: { search: q || undefined, limit: 50 } });
@@ -2307,25 +2313,23 @@ function ByEmployeeTab() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { searchEmployees(''); }, []);
-
-  useDebounce(() => { searchEmployees(search); }, 400, [search]);
+  useEffect(() => { fetchEmployees(''); }, []);
+  useDebounce(() => { fetchEmployees(search); }, 400, [search]);
 
   const openEdit = async (emp: any) => {
     setErr('');
     try {
       const r = await API.get(`/users/${emp.id}/permissions`);
-      const { rolePerms, extraPerms, effectivePerms } = r.data.data;
+      const { rolePerms, effectivePerms } = r.data.data;
       setDraft(effectivePerms);
-      setEditing({ user: emp, rolePerms, extraPerms });
-    } catch { setEditing({ user: emp, rolePerms: [], extraPerms: [] }); setDraft([]); }
+      setEditing({ user: emp, rolePerms });
+    } catch { setEditing({ user: emp, rolePerms: [] }); setDraft([]); }
   };
 
   const save = async () => {
     if (!editing) return;
     setSaving(true); setErr('');
     try {
-      // Only store permissions that are NOT already granted by the role (extras only)
       const extras = draft.filter(k => !editing.rolePerms.includes(k));
       await API.put(`/users/${editing.user.id}/permissions`, { extraPermissions: extras });
       setEditing(null);
@@ -2337,18 +2341,17 @@ function ByEmployeeTab() {
 
   return (
     <>
-      {/* Search bar */}
       <div style={{ position:'relative', marginBottom:16 }}>
-        <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--muted)', fontSize:15 }}>ðŸ”</span>
+        <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--muted)', fontSize:15 }}>🔍</span>
         <input
-          placeholder="Search employees by name, ID, or emailâ€¦"
+          placeholder="Search employees by name, ID, or email…"
           value={search} onChange={e=>setSearch(e.target.value)}
           style={{ width:'100%', padding:'10px 12px 10px 36px', borderRadius:10, border:'1px solid var(--border)', background:'var(--surface)', color:'var(--text)', fontSize:13, boxSizing:'border-box' }}
         />
       </div>
 
       {loading ? (
-        <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Searchingâ€¦</div>
+        <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Searching…</div>
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
           {employees.length === 0 && <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>No employees found</div>}
@@ -2359,13 +2362,13 @@ function ByEmployeeTab() {
               <div key={emp.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:16, display:'flex', alignItems:'center', gap:12 }}>
                 {emp.avatarUrl
                   ? <img src={emp.avatarUrl} style={{ width:40, height:40, borderRadius:'50%', objectFit:'cover' }} alt="" />
-                  : <div style={{ width:40, height:40, borderRadius:'50%', background:`${rc}22`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:700, color:rc }}>
+                  : <div style={{ width:40, height:40, borderRadius:'50%', background:`${rc}22`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:700, color:rc, flexShrink:0 }}>
                       {emp.firstName?.[0]}{emp.lastName?.[0]}
                     </div>
                 }
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontWeight:600, fontSize:14 }}>{emp.firstName} {emp.lastName}</div>
-                  <div style={{ fontSize:12, color:'var(--muted)' }}>{emp.employeeId} Â· {emp.department?.name || 'No dept'}</div>
+                  <div style={{ fontSize:12, color:'var(--muted)' }}>{emp.employeeId} · {emp.department?.name || 'No dept'}</div>
                 </div>
                 <span style={{ fontSize:11, padding:'3px 10px', borderRadius:6, background:`${rc}18`, color:rc, fontWeight:700, flexShrink:0 }}>
                   {roleName.replace(/_/g,' ')}
@@ -2375,7 +2378,7 @@ function ByEmployeeTab() {
                     padding:'7px 14px', borderRadius:8, border:'1.5px solid var(--primary)', background:'transparent',
                     cursor:'pointer', fontSize:12, fontWeight:700, color:'var(--primary)', flexShrink:0,
                   }}>
-                    âœï¸ Edit Rights
+                    ✏️ Edit Rights
                   </button>
                 )}
               </div>
@@ -2386,8 +2389,8 @@ function ByEmployeeTab() {
 
       {editing && (
         <PermEditModal
-          title={`ðŸ” Edit Rights â€” ${editing.user.firstName} ${editing.user.lastName}`}
-          subtitle={`Individual permissions for this employee. Features marked ðŸ”— are already granted by their role.`}
+          title={`🔐 Edit Rights — ${editing.user.firstName} ${editing.user.lastName}`}
+          subtitle="Features marked 🔗 are already granted by the employee's role."
           draft={draft} setDraft={setDraft}
           rolePerms={editing.rolePerms}
           saving={saving} err={err}
@@ -2398,19 +2401,10 @@ function ByEmployeeTab() {
   );
 }
 
-// â”€â”€ Hook: useDebounce â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function useDebounce(fn: ()=>void, delay: number, deps: any[]) {
-  useEffect(() => {
-    const t = setTimeout(fn, delay);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-}
-
 function RightsMasterPage() {
   const [activeTab, setActiveTab] = useState<'role'|'employee'>('role');
 
-  const tabStyle = (active: boolean) => ({
+  const tabStyle = (active: boolean): React.CSSProperties => ({
     padding:'9px 22px', borderRadius:8, cursor:'pointer', fontSize:13, fontWeight:700,
     border:'none', background: active ? 'var(--primary)' : 'var(--surface)',
     color: active ? '#fff' : 'var(--muted)',
@@ -2420,16 +2414,15 @@ function RightsMasterPage() {
   return (
     <div style={{ padding:24 }}>
       <div style={{ marginBottom:20 }}>
-        <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>ðŸ” Rights Master</h1>
+        <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>🔐 Rights Master</h1>
         <p style={{ fontSize:13, color:'var(--muted)', margin:'4px 0 0' }}>
           Control what each role or individual employee can access
         </p>
       </div>
 
-      {/* Tab bar */}
       <div style={{ display:'flex', gap:6, padding:4, background:'var(--bg)', borderRadius:10, border:'1px solid var(--border)', width:'fit-content', marginBottom:24 }}>
-        <button style={tabStyle(activeTab==='role')}     onClick={()=>setActiveTab('role')}>ðŸ·ï¸ By Role</button>
-        <button style={tabStyle(activeTab==='employee')} onClick={()=>setActiveTab('employee')}>ðŸ‘¤ By Employee</button>
+        <button style={tabStyle(activeTab==='role')}     onClick={()=>setActiveTab('role')}>🏷️ By Role</button>
+        <button style={tabStyle(activeTab==='employee')} onClick={()=>setActiveTab('employee')}>👤 By Employee</button>
       </div>
 
       {activeTab === 'role'     && <ByRoleTab />}
@@ -2438,18 +2431,18 @@ function RightsMasterPage() {
   );
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════
 //  TOAST NOTIFICATION SYSTEM
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════
 interface ToastItem { id: number; msg: string; type: 'success' | 'error' | 'info' | 'warn' }
 const ToastCtx = createContext<(msg: string, type?: ToastItem['type']) => void>(() => {});
 const useToast  = () => useContext(ToastCtx);
 
 const TOAST_COLORS: Record<ToastItem['type'], { bg: string; border: string; icon: string }> = {
-  success: { bg: '#064E3B', border: '#10B981', icon: 'âœ…' },
-  error:   { bg: '#7F1D1D', border: '#EF4444', icon: 'âŒ' },
-  info:    { bg: '#1E3A5F', border: '#3B82F6', icon: 'ðŸ””' },
-  warn:    { bg: '#78350F', border: '#F59E0B', icon: 'âš ï¸' },
+  success: { bg: '#064E3B', border: '#10B981', icon: '✅' },
+  error:   { bg: '#7F1D1D', border: '#EF4444', icon: '❌' },
+  info:    { bg: '#1E3A5F', border: '#3B82F6', icon: '🔔' },
+  warn:    { bg: '#78350F', border: '#F59E0B', icon: '⚠️' },
 };
 
 function ToastContainer({ toasts, remove }: { toasts: ToastItem[]; remove: (id: number) => void }) {
@@ -2467,7 +2460,7 @@ function ToastContainer({ toasts, remove }: { toasts: ToastItem[]; remove: (id: 
             <span style={{ flex:1, lineHeight:1.4 }}>{t.msg}</span>
             <button onClick={() => remove(t.id)} style={{ background:'rgba(255,255,255,.18)', border:'none',
               borderRadius:6, width:22, height:22, color:'#fff', cursor:'pointer', fontSize:13,
-              display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>Ã—</button>
+              display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>×</button>
           </div>
         );
       })}
@@ -2475,10 +2468,10 @@ function ToastContainer({ toasts, remove }: { toasts: ToastItem[]; remove: (id: 
   );
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════
 //  BIOMETRIC AUTHENTICATION
 //
-//  HOW IT WORKS â€” a quick guide for understanding the code:
+//  HOW IT WORKS — a quick guide for understanding the code:
 //
 //  1. PLUGIN  : @aparajita/capacitor-biometric-auth
 //               Capacitor is the "bridge" between your React (web) code
@@ -2493,8 +2486,8 @@ function ToastContainer({ toasts, remove }: { toasts: ToastItem[]; remove: (id: 
 //
 //  3. BiometricAuth.authenticate({ ... })
 //               Shows the native OS fingerprint/face dialog.
-//               - Resolves (void)  â†’ fingerprint matched âœ…
-//               - Rejects (BiometryError) â†’ user cancelled or too many fails
+//               - Resolves (void)  → fingerprint matched ✅
+//               - Rejects (BiometryError) → user cancelled or too many fails
 //
 //  4. CapApp.addListener('appStateChange', ...)
 //               @capacitor/app lets us listen to foreground/background
@@ -2505,25 +2498,25 @@ function ToastContainer({ toasts, remove }: { toasts: ToastItem[]; remove: (id: 
 //
 //  5. STORAGE  : localStorage key 'bio_enabled'
 //               Persisted across app restarts.  User can toggle it
-//               in Profile â†’ Security.  Fully optional â€” if the device
+//               in Profile → Security.  Fully optional — if the device
 //               has no biometric sensor, the toggle is hidden.
 //
 //  FLOW:
 //    App opens
-//      â””â”€â–º bio_enabled?  YES â†’ show <LockScreen> overlay
-//                             â””â”€â–º user taps "Unlock" â†’ authenticate()
-//                                   â”œâ”€â–º success  â†’ hide overlay, show app
-//                                   â””â”€â–º fail/cancel â†’ stay locked
+//      └─► bio_enabled?  YES → show <LockScreen> overlay
+//                             └─► user taps "Unlock" → authenticate()
+//                                   ├─► success  → hide overlay, show app
+//                                   └─► fail/cancel → stay locked
 //    User backgrounds the app
-//      â””â”€â–º locked = true
+//      └─► locked = true
 //    User re-opens the app
-//      â””â”€â–º bio_enabled && locked â†’ show <LockScreen> again
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//      └─► bio_enabled && locked → show <LockScreen> again
+// ═══════════════════════════════════════════════════════════════════
 
 const BIO_KEY = 'bio_enabled';           // localStorage key for the user preference
 const IS_NATIVE = !!(window as any).Capacitor?.isNativePlatform?.();  // true only inside the APK
 
-// â”€â”€ useBiometric hook â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── useBiometric hook ────────────────────────────────────────────
 // Encapsulates all biometric logic so the UI stays clean.
 function useBiometric() {
   const [bioAvailable, setBioAvailable] = useState(false);
@@ -2546,7 +2539,7 @@ function useBiometric() {
     let listener: any;
     CapApp.addListener('appStateChange', (state) => {
       if (!state.isActive) {
-        // App went to background â†’ lock it for when they return
+        // App went to background → lock it for when they return
         setLocked(true);
       }
       // When isActive=true (foreground), the LockScreen is already showing
@@ -2568,7 +2561,7 @@ function useBiometric() {
         allowDeviceCredential: true,   // fallback to PIN/pattern if fingerprint fails
         cancelTitle:           'Cancel',
       });
-      // âœ… Authentication passed â€” remove the lock screen
+      // ✅ Authentication passed — remove the lock screen
       setLocked(false);
       setBioError('');
     } catch (err: any) {
@@ -2597,7 +2590,7 @@ function useBiometric() {
         localStorage.setItem(BIO_KEY, '1');
         setBioEnabled(true);
       } catch {
-        // User cancelled â€” don't enable
+        // User cancelled — don't enable
       }
     } else {
       localStorage.removeItem(BIO_KEY);
@@ -2609,7 +2602,7 @@ function useBiometric() {
   return { bioAvailable, bioEnabled, locked, bioError, verifying, authenticate, toggleBio };
 }
 
-// â”€â”€ LockScreen overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── LockScreen overlay ───────────────────────────────────────────
 function LockScreen({ onUnlock, error, verifying }: {
   onUnlock: () => void; error: string; verifying: boolean;
 }) {
@@ -2629,11 +2622,11 @@ function LockScreen({ onUnlock, error, verifying }: {
         background:'rgba(200,16,46,.18)', border:'2px solid rgba(200,16,46,.5)',
         display:'flex', alignItems:'center', justifyContent:'center',
         animation: verifying ? 'gpPulse 1.2s ease-in-out infinite' : 'none' }}>
-        <span style={{ fontSize:44 }}>ðŸ”</span>
+        <span style={{ fontSize:44 }}>🔐</span>
       </div>
 
       <div style={{ fontSize:22, fontWeight:800, color:'#fff', marginBottom:8 }}>
-        {verifying ? 'Verifyingâ€¦' : 'App Locked'}
+        {verifying ? 'Verifying…' : 'App Locked'}
       </div>
       <div style={{ fontSize:14, color:'rgba(255,255,255,.55)', marginBottom:32, textAlign:'center', maxWidth:260 }}>
         {verifying ? 'Place your finger on the sensor' : 'Tap the button below to unlock with your fingerprint'}
@@ -2653,7 +2646,7 @@ function LockScreen({ onUnlock, error, verifying }: {
           color:'#fff', border:'2px solid rgba(255,255,255,.2)',
           boxShadow: verifying ? 'none' : '0 8px 32px rgba(200,16,46,.5)',
           transition:'all .2s', minWidth:200, fontFamily:'inherit' }}>
-        {verifying ? 'â³ Checkingâ€¦' : 'ðŸ‘† Unlock with Fingerprint'}
+        {verifying ? '⏳ Checking…' : '👆 Unlock with Fingerprint'}
       </button>
 
       <div style={{ marginTop:20, fontSize:12, color:'rgba(255,255,255,.35)' }}>
@@ -2663,7 +2656,7 @@ function LockScreen({ onUnlock, error, verifying }: {
   );
 }
 
-// â”€â”€ BiometricToggle UI component (used in Profile settings) â”€â”€â”€â”€â”€â”€
+// ── BiometricToggle UI component (used in Profile settings) ──────
 export function BiometricToggle() {
   const { bioAvailable, bioEnabled, toggleBio } = useBiometricCtx();
   if (!IS_NATIVE || !bioAvailable) return null;   // hide on web or unsupported device
@@ -2673,7 +2666,7 @@ export function BiometricToggle() {
       padding:'14px 16px', borderRadius:12, background:'var(--surface)',
       border:'1px solid var(--border)', marginBottom:12 }}>
       <div>
-        <div style={{ fontSize:14, fontWeight:600 }}>ðŸ” Fingerprint Unlock</div>
+        <div style={{ fontSize:14, fontWeight:600 }}>🔐 Fingerprint Unlock</div>
         <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>
           {bioEnabled ? 'App locks when backgrounded' : 'Enable to lock app with fingerprint'}
         </div>
@@ -2697,10 +2690,10 @@ export function BiometricToggle() {
 const BiometricCtx = createContext<ReturnType<typeof useBiometric> | null>(null);
 const useBiometricCtx = () => useContext(BiometricCtx)!;
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-//  GATEPASS MODULE â€” Employee Outpass System
-//  Uses the existing API axios instance â†’ /api/v1/gatepass/*
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════
+//  GATEPASS MODULE — Employee Outpass System
+//  Uses the existing API axios instance → /api/v1/gatepass/*
+// ═══════════════════════════════════════════════════════════════════
 
 const GP_STATUS: Record<string, { color: string; bg: string; label: string }> = {
   PENDING:   { color: '#92400E', bg: '#FEF3C7', label: 'Pending'   },
@@ -2711,10 +2704,10 @@ const GP_STATUS: Record<string, { color: string; bg: string; label: string }> = 
   RETURNED:  { color: '#4C1D95', bg: '#EDE9FE', label: 'Returned'  },
 };
 const GP_TYPE: Record<string, { color: string; icon: string }> = {
-  OFFICIAL:  { color: '#3B82F6', icon: 'ðŸ’¼' },
-  PERSONAL:  { color: '#8B5CF6', icon: 'ðŸ ' },
-  MEDICAL:   { color: '#10B981', icon: 'ðŸ¥' },
-  EMERGENCY: { color: '#EF4444', icon: 'ðŸš¨' },
+  OFFICIAL:  { color: '#3B82F6', icon: '💼' },
+  PERSONAL:  { color: '#8B5CF6', icon: '🏠' },
+  MEDICAL:   { color: '#10B981', icon: '🏥' },
+  EMERGENCY: { color: '#EF4444', icon: '🚨' },
 };
 
 const gpCardSt: React.CSSProperties = {
@@ -2742,15 +2735,15 @@ function GpStatusBadge({ status }: { status: string }) {
   return <span style={{ padding:'3px 9px', borderRadius:8, fontSize:11, fontWeight:700, color:s.color, background:s.bg }}>{s.label}</span>;
 }
 function GpTypeBadge({ type }: { type: string }) {
-  const t = GP_TYPE[type] || { color: '#6B7280', icon: 'ðŸ“„' };
+  const t = GP_TYPE[type] || { color: '#6B7280', icon: '📄' };
   return <span style={{ padding:'3px 9px', borderRadius:8, fontSize:11, fontWeight:700, color:t.color, background:`${t.color}18` }}>{t.icon} {type}</span>;
 }
 function fmtDt(dt?: string | null) {
-  if (!dt) return 'â€”';
+  if (!dt) return '—';
   return new Date(dt).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
 }
 
-// â”€â”€â”€ My Requests Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── My Requests Tab ──────────────────────────────────────────────
 function GpMyTab({ refreshTick }: { refreshTick?: number }) {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -2807,10 +2800,10 @@ function GpMyTab({ refreshTick }: { refreshTick?: number }) {
         <button onClick={() => { setForm(EMPTY); setErr(''); setShowAdd(true); }} style={gpBtnPri}>+ Raise Request</button>
       </div>
 
-      {loading ? <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loadingâ€¦</div>
+      {loading ? <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loading…</div>
       : requests.length === 0 ? (
         <div style={{ textAlign:'center', padding:60 }}>
-          <div style={{ fontSize:48, marginBottom:12 }}>ðŸšª</div>
+          <div style={{ fontSize:48, marginBottom:12 }}>🚪</div>
           <div style={{ fontSize:16, fontWeight:600 }}>No outpass requests yet</div>
           <div style={{ fontSize:13, color:'var(--muted)', marginTop:4 }}>Click "Raise Request" to create your first request</div>
         </div>
@@ -2825,28 +2818,28 @@ function GpMyTab({ refreshTick }: { refreshTick?: number }) {
                     <GpStatusBadge status={r.status} />
                     <GpTypeBadge   type={r.outpassType} />
                     {r.isFullDay
-                      ? <span style={{ padding:'3px 9px', borderRadius:8, fontSize:11, fontWeight:700, color:'#5B21B6', background:'#EDE9FE' }}>ðŸŒ• Full Day</span>
-                      : <span style={{ padding:'3px 9px', borderRadius:8, fontSize:11, fontWeight:700, color:'#065F46', background:'#D1FAE5' }}>â˜€ï¸ Half Day</span>}
+                      ? <span style={{ padding:'3px 9px', borderRadius:8, fontSize:11, fontWeight:700, color:'#5B21B6', background:'#EDE9FE' }}>🌕 Full Day</span>
+                      : <span style={{ padding:'3px 9px', borderRadius:8, fontSize:11, fontWeight:700, color:'#065F46', background:'#D1FAE5' }}>☀️ Half Day</span>}
                   </div>
                 </div>
-                {r.status === 'PENDING' && <button onClick={() => cancel(r.id)} style={gpBtnRed}>âœ• Cancel</button>}
+                {r.status === 'PENDING' && <button onClick={() => cancel(r.id)} style={gpBtnRed}>✕ Cancel</button>}
               </div>
-              <div style={{ fontSize:14, fontWeight:600, marginBottom:4 }}>ðŸ“ {r.destination}</div>
+              <div style={{ fontSize:14, fontWeight:600, marginBottom:4 }}>📍 {r.destination}</div>
               <div style={{ fontSize:13, color:'var(--muted)', marginBottom:8, lineHeight:1.5 }}>{r.purpose}</div>
               <div style={{ display:'flex', gap:14, fontSize:12, color:'var(--muted)', flexWrap:'wrap' }}>
                 {r.isFullDay
-                  ? <span>ðŸŒ• Full day pass â€” will not return today</span>
-                  : <span>â° Expected: {fmtDt(r.expectedReturnTime)}</span>}
-                {r.approvedBy && <span>âœ… By: {r.approvedBy.firstName} {r.approvedBy.lastName}</span>}
-                {r.actualExitTime   && <span>ðŸš¶ Exited: {fmtDt(r.actualExitTime)}</span>}
-                {r.actualReturnTime && <span>ðŸ  Returned: {fmtDt(r.actualReturnTime)}</span>}
-                <span style={{ marginLeft:'auto' }}>ðŸ• {fmtDt(r.createdAt)}</span>
+                  ? <span>🌕 Full day pass — will not return today</span>
+                  : <span>⏰ Expected: {fmtDt(r.expectedReturnTime)}</span>}
+                {r.approvedBy && <span>✅ By: {r.approvedBy.firstName} {r.approvedBy.lastName}</span>}
+                {r.actualExitTime   && <span>🚶 Exited: {fmtDt(r.actualExitTime)}</span>}
+                {r.actualReturnTime && <span>🏠 Returned: {fmtDt(r.actualReturnTime)}</span>}
+                <span style={{ marginLeft:'auto' }}>🕐 {fmtDt(r.createdAt)}</span>
               </div>
               {r.approvalRemarks && (
                 <div style={{ marginTop:8, fontSize:12, padding:'6px 10px', borderRadius:8,
                   background: r.status==='REJECTED' ? '#FEF2F2' : 'var(--bg)',
                   color: r.status==='REJECTED' ? '#991B1B' : 'var(--muted)' }}>
-                  ðŸ’¬ {r.approvalRemarks}
+                  💬 {r.approvalRemarks}
                 </div>
               )}
             </div>
@@ -2860,8 +2853,8 @@ function GpMyTab({ refreshTick }: { refreshTick?: number }) {
           onClick={e => e.target===e.currentTarget && setShowAdd(false)}>
           <div style={{ width:'100%', maxWidth:480, background:'var(--surface)', borderRadius:16, padding:'24px 20px', maxHeight:'90vh', overflowY:'auto', boxShadow:'0 20px 60px rgba(0,0,0,.3)' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <h2 style={{ fontSize:18, fontWeight:700, margin:0 }}>ðŸšª Raise Outpass Request</h2>
-              <button onClick={() => setShowAdd(false)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color:'var(--muted)' }}>Ã—</button>
+              <h2 style={{ fontSize:18, fontWeight:700, margin:0 }}>🚪 Raise Outpass Request</h2>
+              <button onClick={() => setShowAdd(false)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color:'var(--muted)' }}>×</button>
             </div>
 
             {err && <div style={{ background:'#FEF2F2', color:'#991B1B', padding:'8px 12px', borderRadius:8, fontSize:13, marginBottom:14 }}>{err}</div>}
@@ -2893,7 +2886,7 @@ function GpMyTab({ refreshTick }: { refreshTick?: number }) {
                   border: !form.isFullDay ? '2px solid var(--primary)' : '1px solid var(--border)',
                   background: !form.isFullDay ? 'var(--primary-bg)' : 'var(--bg)',
                   color: !form.isFullDay ? 'var(--primary)' : 'var(--muted)' }}>
-                â˜€ï¸ Half Day<br />
+                ☀️ Half Day<br />
                 <span style={{ fontSize:11, fontWeight:400, opacity:.8 }}>Will return today</span>
               </button>
               <button type="button" onClick={() => f('isFullDay', true)}
@@ -2901,7 +2894,7 @@ function GpMyTab({ refreshTick }: { refreshTick?: number }) {
                   border: form.isFullDay ? '2px solid #7C3AED' : '1px solid var(--border)',
                   background: form.isFullDay ? '#EDE9FE' : 'var(--bg)',
                   color: form.isFullDay ? '#5B21B6' : 'var(--muted)' }}>
-                ðŸŒ• Full Day<br />
+                🌕 Full Day<br />
                 <span style={{ fontSize:11, fontWeight:400, opacity:.8 }}>Won't return today</span>
               </button>
             </div>
@@ -2914,17 +2907,17 @@ function GpMyTab({ refreshTick }: { refreshTick?: number }) {
             )}
             {form.isFullDay && (
               <div style={{ padding:'10px 14px', borderRadius:10, background:'#EDE9FE', border:'1px solid #C4B5FD', marginBottom:16, fontSize:13, color:'#5B21B6' }}>
-                ðŸŒ• Full day pass â€” you will not be expected back until the next working day.
+                🌕 Full day pass — you will not be expected back until the next working day.
               </div>
             )}
 
             <label style={labelStyle}>Additional Remarks (optional)</label>
-            <input style={inputStyle} value={form.remarks} onChange={e => f('remarks', e.target.value)} placeholder="Any extra notes for your managerâ€¦" />
+            <input style={inputStyle} value={form.remarks} onChange={e => f('remarks', e.target.value)} placeholder="Any extra notes for your manager…" />
 
             <div style={{ display:'flex', gap:10, marginTop:20 }}>
               <button onClick={() => setShowAdd(false)} style={{ ...gpBtnSec, flex:1 }}>Cancel</button>
               <button onClick={submit} disabled={saving} style={{ ...gpBtnPri, flex:1, opacity:saving?.7:1 }}>
-                {saving ? 'Submittingâ€¦' : 'Submit Request'}
+                {saving ? 'Submitting…' : 'Submit Request'}
               </button>
             </div>
           </div>
@@ -2934,7 +2927,7 @@ function GpMyTab({ refreshTick }: { refreshTick?: number }) {
   );
 }
 
-// â”€â”€â”€ Approvals Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Approvals Tab ─────────────────────────────────────────────────
 function GpApprovalsTab({ refreshTick }: { refreshTick?: number }) {
   const [requests,   setRequests]   = useState<any[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -2970,10 +2963,10 @@ function GpApprovalsTab({ refreshTick }: { refreshTick?: number }) {
         </div>
       )}
 
-      {loading ? <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loadingâ€¦</div>
+      {loading ? <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loading…</div>
       : requests.length === 0 ? (
         <div style={{ textAlign:'center', padding:60 }}>
-          <div style={{ fontSize:48, marginBottom:12 }}>ðŸŽ‰</div>
+          <div style={{ fontSize:48, marginBottom:12 }}>🎉</div>
           <div style={{ fontSize:16, fontWeight:600 }}>All caught up!</div>
           <div style={{ fontSize:13, color:'var(--muted)', marginTop:4 }}>No pending approvals from your team.</div>
         </div>
@@ -2982,8 +2975,8 @@ function GpApprovalsTab({ refreshTick }: { refreshTick?: number }) {
           {requests.map((r: any) => {
             const req  = r.requester || {};
             const name = `${req.firstName||''} ${req.lastName||''}`.trim();
-            const dept = req.department?.name || 'â€”';
-            const role = req.role?.displayName || req.role?.name || 'â€”';
+            const dept = req.department?.name || '—';
+            const role = req.role?.displayName || req.role?.name || '—';
             return (
             <div key={r.id} style={{ ...gpCardSt, border:'1px solid #FCD34D' }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:12 }}>
@@ -2993,27 +2986,27 @@ function GpApprovalsTab({ refreshTick }: { refreshTick?: number }) {
                     <GpTypeBadge type={r.outpassType} />
                   </div>
                   <div style={{ fontWeight:700, fontSize:15 }}>{name}</div>
-                  <div style={{ fontSize:12, color:'var(--muted)' }}>{req.employeeId} Â· {dept} Â· {role}</div>
+                  <div style={{ fontSize:12, color:'var(--muted)' }}>{req.employeeId} · {dept} · {role}</div>
                 </div>
                 <div style={{ fontSize:11, color:'var(--muted)', textAlign:'right', flexShrink:0 }}>{fmtDt(r.createdAt)}</div>
               </div>
 
               <div style={{ padding:'10px 12px', background:'var(--bg)', borderRadius:10, marginBottom:12 }}>
-                <div style={{ fontSize:13, fontWeight:600, marginBottom:4 }}>ðŸ“ {r.destination}</div>
+                <div style={{ fontSize:13, fontWeight:600, marginBottom:4 }}>📍 {r.destination}</div>
                 <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.5 }}>{r.purpose}</div>
               </div>
 
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
                 <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
                   {r.isFullDay
-                    ? <span style={{ fontSize:12, padding:'3px 9px', borderRadius:8, fontWeight:700, color:'#5B21B6', background:'#EDE9FE' }}>ðŸŒ• Full Day</span>
-                    : <span style={{ fontSize:12, color:'var(--muted)' }}>â° Expected back: <strong>{fmtDt(r.expectedReturnTime)}</strong></span>}
+                    ? <span style={{ fontSize:12, padding:'3px 9px', borderRadius:8, fontWeight:700, color:'#5B21B6', background:'#EDE9FE' }}>🌕 Full Day</span>
+                    : <span style={{ fontSize:12, color:'var(--muted)' }}>⏰ Expected back: <strong>{fmtDt(r.expectedReturnTime)}</strong></span>}
                 </div>
                 <div style={{ display:'flex', gap:8 }}>
-                  <button onClick={() => { setRejectItem(r); setRemarks(''); }} style={gpBtnRed}>âœ• Reject</button>
+                  <button onClick={() => { setRejectItem(r); setRemarks(''); }} style={gpBtnRed}>✕ Reject</button>
                   <button onClick={() => decide(r.id, true)} disabled={processing===r.id}
                     style={{ ...gpBtnGreen, padding:'9px 16px', fontSize:13, opacity:processing===r.id?.6:1 }}>
-                    {processing===r.id ? 'â€¦' : 'âœ“ Approve'}
+                    {processing===r.id ? '…' : '✓ Approve'}
                   </button>
                 </div>
               </div>  {/* end approve/reject row */}
@@ -3033,12 +3026,12 @@ function GpApprovalsTab({ refreshTick }: { refreshTick?: number }) {
               Rejecting <strong>{rejectItem.passNumber}</strong> for {`${rejectItem.requester?.firstName||''} ${rejectItem.requester?.lastName||''}`.trim()}
             </p>
             <label style={labelStyle}>Reason for rejection *</label>
-            <textarea style={{ ...inputStyle, minHeight:80, resize:'vertical' as const }} value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Explain why this request is being rejectedâ€¦" />
+            <textarea style={{ ...inputStyle, minHeight:80, resize:'vertical' as const }} value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Explain why this request is being rejected…" />
             <div style={{ display:'flex', gap:10, marginTop:16 }}>
               <button onClick={() => setRejectItem(null)} style={{ ...gpBtnSec, flex:1 }}>Cancel</button>
               <button onClick={() => decide(rejectItem.id, false, remarks)} disabled={!remarks.trim() || processing===rejectItem.id}
                 style={{ flex:1, padding:'10px 18px', borderRadius:9, background:'#EF4444', color:'#fff', border:'none', cursor:'pointer', fontWeight:700, fontFamily:'inherit', opacity:(!remarks.trim()||processing===rejectItem.id)?.6:1 }}>
-                {processing===rejectItem.id ? 'Rejectingâ€¦' : 'Confirm Reject'}
+                {processing===rejectItem.id ? 'Rejecting…' : 'Confirm Reject'}
               </button>
             </div>
           </div>
@@ -3048,7 +3041,7 @@ function GpApprovalsTab({ refreshTick }: { refreshTick?: number }) {
   );
 }
 
-// â”€â”€â”€ Gate Terminal Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Gate Terminal Tab ─────────────────────────────────────────────
 function GpGateTab({ refreshTick }: { refreshTick?: number }) {
   const [passes,     setPasses]     = useState<any[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -3097,13 +3090,13 @@ function GpGateTab({ refreshTick }: { refreshTick?: number }) {
             animation:'gpPulse 1.4s ease-in-out infinite', boxShadow:'0 0 0 0 rgba(239,68,68,.4)' }} />
           <span style={{ fontSize:11, fontWeight:700, color:'#DC2626', letterSpacing:.8 }}>LIVE</span>
         </div>
-        <button onClick={load} style={gpBtnSec}>â†» Refresh</button>
+        <button onClick={load} style={gpBtnSec}>↻ Refresh</button>
       </div>
 
-      {loading ? <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loadingâ€¦</div>
+      {loading ? <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loading…</div>
       : passes.length === 0 ? (
         <div style={{ textAlign:'center', padding:60 }}>
-          <div style={{ fontSize:48, marginBottom:12 }}>ðŸšª</div>
+          <div style={{ fontSize:48, marginBottom:12 }}>🚪</div>
           <div style={{ fontSize:16, fontWeight:600 }}>No active passes right now</div>
           <div style={{ fontSize:13, color:'var(--muted)', marginTop:4 }}>Approved passes will appear here in real-time.</div>
         </div>
@@ -3113,7 +3106,7 @@ function GpGateTab({ refreshTick }: { refreshTick?: number }) {
           {readyToExit.length > 0 && (
             <div style={{ marginBottom:24 }}>
               <div style={{ fontSize:13, fontWeight:700, color:'#065F46', marginBottom:10, display:'flex', alignItems:'center', gap:6 }}>
-                ðŸŸ¢ Ready to Exit ({readyToExit.length})
+                🟢 Ready to Exit ({readyToExit.length})
               </div>
               <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                 {readyToExit.map((p: any) => {
@@ -3125,20 +3118,20 @@ function GpGateTab({ refreshTick }: { refreshTick?: number }) {
                       <div style={{ flex:1, minWidth:180 }}>
                         <div style={{ fontFamily:'monospace', fontSize:11, color:'var(--muted)', marginBottom:2 }}>{p.passNumber}</div>
                         <div style={{ fontWeight:700, fontSize:15 }}>{name}</div>
-                        <div style={{ fontSize:12, color:'var(--muted)' }}>{req.employeeId} Â· {req.department?.name}</div>
+                        <div style={{ fontSize:12, color:'var(--muted)' }}>{req.employeeId} · {req.department?.name}</div>
                         <div style={{ display:'flex', gap:8, marginTop:4, flexWrap:'wrap', alignItems:'center' }}>
                           <GpTypeBadge type={p.outpassType} />
                           {p.isFullDay
-                            ? <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#5B21B6', background:'#EDE9FE' }}>ðŸŒ• Full Day</span>
-                            : <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#065F46', background:'#D1FAE5' }}>â˜€ï¸ Half Day</span>}
-                          <span style={{ fontSize:12, color:'var(--muted)' }}>â†’ {p.destination}</span>
+                            ? <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#5B21B6', background:'#EDE9FE' }}>🌕 Full Day</span>
+                            : <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#065F46', background:'#D1FAE5' }}>☀️ Half Day</span>}
+                          <span style={{ fontSize:12, color:'var(--muted)' }}>→ {p.destination}</span>
                         </div>
-                        {!p.isFullDay && <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>â° Expected back: {fmtDt(p.expectedReturnTime)}</div>}
-                        {p.isFullDay && <div style={{ fontSize:11, color:'#7C3AED', marginTop:4 }}>ðŸŒ• Will not return today</div>}
+                        {!p.isFullDay && <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>⏰ Expected back: {fmtDt(p.expectedReturnTime)}</div>}
+                        {p.isFullDay && <div style={{ fontSize:11, color:'#7C3AED', marginTop:4 }}>🌕 Will not return today</div>}
                       </div>
                       <button onClick={() => markExit(p.id)} disabled={processing===p.id}
                         style={{ ...gpBtnPri, padding:'11px 18px', opacity:processing===p.id?.6:1, flexShrink:0 }}>
-                        {processing===p.id ? 'â€¦' : 'ðŸš¶ Mark Exit'}
+                        {processing===p.id ? '…' : '🚶 Mark Exit'}
                       </button>
                     </div>
                   </div>
@@ -3152,7 +3145,7 @@ function GpGateTab({ refreshTick }: { refreshTick?: number }) {
           {currentlyOut.length > 0 && (
             <div>
               <div style={{ fontSize:13, fontWeight:700, color:'#1E40AF', marginBottom:10 }}>
-                ðŸ”µ Currently Outside ({currentlyOut.length})
+                🔵 Currently Outside ({currentlyOut.length})
               </div>
               <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                 {currentlyOut.map((p: any) => {
@@ -3165,27 +3158,27 @@ function GpGateTab({ refreshTick }: { refreshTick?: number }) {
                         <div style={{ flex:1, minWidth:180 }}>
                           <div style={{ fontFamily:'monospace', fontSize:11, color:'var(--muted)', marginBottom:2 }}>{p.passNumber}</div>
                           <div style={{ fontWeight:700, fontSize:15 }}>{name}</div>
-                          <div style={{ fontSize:12, color:'var(--muted)' }}>{req.employeeId} Â· {req.department?.name}</div>
+                          <div style={{ fontSize:12, color:'var(--muted)' }}>{req.employeeId} · {req.department?.name}</div>
                           <div style={{ display:'flex', gap:6, marginTop:4, flexWrap:'wrap', alignItems:'center' }}>
                             {p.isFullDay
-                              ? <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#5B21B6', background:'#EDE9FE' }}>ðŸŒ• Full Day</span>
-                              : <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#065F46', background:'#D1FAE5' }}>â˜€ï¸ Half Day</span>}
+                              ? <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#5B21B6', background:'#EDE9FE' }}>🌕 Full Day</span>
+                              : <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#065F46', background:'#D1FAE5' }}>☀️ Half Day</span>}
                           </div>
                           <div style={{ display:'flex', gap:12, marginTop:4, fontSize:12, flexWrap:'wrap' }}>
-                            <span>ðŸš¶ Exit: {fmtDt(p.actualExitTime)}</span>
+                            <span>🚶 Exit: {fmtDt(p.actualExitTime)}</span>
                             {!p.isFullDay && (
                               <span style={{ color: overdue ? '#EF4444' : 'var(--muted)', fontWeight: overdue ? 700 : 400 }}>
-                                {overdue ? 'âš ï¸ OVERDUE â€” ' : 'â° '}Expected: {fmtDt(p.expectedReturnTime)}
+                                {overdue ? '⚠️ OVERDUE — ' : '⏰ '}Expected: {fmtDt(p.expectedReturnTime)}
                               </span>
                             )}
-                            {p.isFullDay && <span style={{ color:'#7C3AED' }}>ðŸŒ• Full day â€” won't return today</span>}
+                            {p.isFullDay && <span style={{ color:'#7C3AED' }}>🌕 Full day — won't return today</span>}
                           </div>
                         </div>
-                        {/* Full-day passes have no "Mark Return" â€” they won't come back today */}
+                        {/* Full-day passes have no "Mark Return" — they won't come back today */}
                         {!p.isFullDay && (
                           <button onClick={() => markReturn(p.id)} disabled={processing===p.id}
                             style={{ ...gpBtnGreen, padding:'11px 16px', fontSize:13, opacity:processing===p.id?.6:1, flexShrink:0 }}>
-                            {processing===p.id ? 'â€¦' : 'ðŸ  Mark Return'}
+                            {processing===p.id ? '…' : '🏠 Mark Return'}
                           </button>
                         )}
                         {p.isFullDay && (
@@ -3206,7 +3199,7 @@ function GpGateTab({ refreshTick }: { refreshTick?: number }) {
   );
 }
 
-// â”€â”€â”€ HR Dashboard Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── HR Dashboard Tab ──────────────────────────────────────────────
 function GpHRTab({ refreshTick }: { refreshTick?: number }) {
   const [allRequests, setAllRequests] = useState<any[]>([]);
   const [loading,     setLoading]     = useState(true);
@@ -3241,11 +3234,11 @@ function GpHRTab({ refreshTick }: { refreshTick?: number }) {
             </button>
             );
           })}
-          {statusF && <button onClick={() => setStatusF('')} style={{ ...gpBtnSec, alignSelf:'center' }}>âœ• Clear</button>}
+          {statusF && <button onClick={() => setStatusF('')} style={{ ...gpBtnSec, alignSelf:'center' }}>✕ Clear</button>}
         </div>
       )}
 
-      {loading ? <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loadingâ€¦</div>
+      {loading ? <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loading…</div>
       : filtered.length === 0 ? (
         <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>No records found.</div>
       ) : (
@@ -3262,23 +3255,23 @@ function GpHRTab({ refreshTick }: { refreshTick?: number }) {
               <tbody>
                 {filtered.map((r: any) => {
                   const req = r.requester || {};
-                  const name = `${req.firstName||''} ${req.lastName||''}`.trim() || 'â€”';
-                  const approvedBy = r.approvedBy ? `${r.approvedBy.firstName} ${r.approvedBy.lastName}` : 'â€”';
+                  const name = `${req.firstName||''} ${req.lastName||''}`.trim() || '—';
+                  const approvedBy = r.approvedBy ? `${r.approvedBy.firstName} ${r.approvedBy.lastName}` : '—';
                   return (
                   <tr key={r.id} style={{ borderBottom:'1px solid var(--border)' }}
                     onMouseEnter={e => (e.currentTarget.style.background='var(--bg)')}
                     onMouseLeave={e => (e.currentTarget.style.background='transparent')}>
                     <td style={{ padding:'10px 14px', fontFamily:'monospace', fontSize:11, color:'var(--muted)', whiteSpace:'nowrap' }}>{r.passNumber}</td>
                     <td style={{ padding:'10px 14px', fontWeight:600, whiteSpace:'nowrap' }}>{name}</td>
-                    <td style={{ padding:'10px 14px', fontSize:12, color:'var(--muted)' }}>{req.department?.name||'â€”'}</td>
+                    <td style={{ padding:'10px 14px', fontSize:12, color:'var(--muted)' }}>{req.department?.name||'—'}</td>
                     <td style={{ padding:'10px 14px' }}><GpTypeBadge type={r.outpassType} /></td>
                     <td style={{ padding:'10px 14px' }}>
                       {r.isFullDay
-                        ? <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#5B21B6', background:'#EDE9FE' }}>ðŸŒ• Full</span>
-                        : <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#065F46', background:'#D1FAE5' }}>â˜€ï¸ Half</span>}
+                        ? <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#5B21B6', background:'#EDE9FE' }}>🌕 Full</span>
+                        : <span style={{ padding:'2px 8px', borderRadius:7, fontSize:11, fontWeight:700, color:'#065F46', background:'#D1FAE5' }}>☀️ Half</span>}
                     </td>
                     <td style={{ padding:'10px 14px', maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.destination}</td>
-                    <td style={{ padding:'10px 14px', fontSize:12, whiteSpace:'nowrap' }}>{r.isFullDay ? 'â€”' : fmtDt(r.expectedReturnTime)}</td>
+                    <td style={{ padding:'10px 14px', fontSize:12, whiteSpace:'nowrap' }}>{r.isFullDay ? '—' : fmtDt(r.expectedReturnTime)}</td>
                     <td style={{ padding:'10px 14px', fontSize:12, whiteSpace:'nowrap' }}>{fmtDt(r.actualExitTime)}</td>
                     <td style={{ padding:'10px 14px', fontSize:12, whiteSpace:'nowrap' }}>{fmtDt(r.actualReturnTime)}</td>
                     <td style={{ padding:'10px 14px' }}><GpStatusBadge status={r.status} /></td>
@@ -3295,7 +3288,7 @@ function GpHRTab({ refreshTick }: { refreshTick?: number }) {
   );
 }
 
-// â”€â”€â”€ Main Gatepass Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Main Gatepass Page ────────────────────────────────────────────
 function GatepassPage() {
   const { user }  = useAuth();
   const addToast  = useToast();
@@ -3307,15 +3300,15 @@ function GatepassPage() {
   const isMgr   = ['MANAGER','TEAM_LEADER','SUPER_ADMIN','ADMIN'].includes(role);
 
   const TABS = [
-    { key:'my',      label:'ðŸ“‹ My Requests',  show: true    },
-    { key:'approve', label:'âœ… Approvals',     show: isMgr   },
-    { key:'gate',    label:'ðŸšª Gate Terminal', show: isAdmin },
-    { key:'hr',      label:'ðŸ“Š HR Dashboard', show: isAdmin },
+    { key:'my',      label:'📋 My Requests',  show: true    },
+    { key:'approve', label:'✅ Approvals',     show: isMgr   },
+    { key:'gate',    label:'🚪 Gate Terminal', show: isAdmin },
+    { key:'hr',      label:'📊 HR Dashboard', show: isAdmin },
   ].filter(t => t.show);
 
   const validTab = TABS.find(t => t.key === tab) ? tab : (TABS[0]?.key as any || 'my');
 
-  // â”€â”€ Socket.IO real-time connection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Socket.IO real-time connection ──────────────────────────────
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (!token) return;
@@ -3326,40 +3319,40 @@ function GatepassPage() {
       reconnectionAttempts: 5,
     });
 
-    socket.on('connect',    () => console.log('[Gatepass] ðŸ”Œ Socket connected:', socket.id));
-    socket.on('disconnect', () => console.log('[Gatepass] ðŸ”Œ Socket disconnected'));
+    socket.on('connect',    () => console.log('[Gatepass] 🔌 Socket connected:', socket.id));
+    socket.on('disconnect', () => console.log('[Gatepass] 🔌 Socket disconnected'));
 
-    // gatepass:new â€” backend sends ONLY to the RM's personal room, so if you receive this you ARE the RM
+    // gatepass:new — backend sends ONLY to the RM's personal room, so if you receive this you ARE the RM
     socket.on('gatepass:new', (data: any) => {
-      addToast(`ðŸšª New outpass: ${data.name || 'Someone'} â†’ ${data.destination || ''}`, 'info');
+      addToast(`🚪 New outpass: ${data.name || 'Someone'} → ${data.destination || ''}`, 'info');
       setGpTick(t => t + 1);
     });
 
-    // gatepass:approved â€” backend sends ONLY to the requester's personal room
+    // gatepass:approved — backend sends ONLY to the requester's personal room
     socket.on('gatepass:approved', (data: any) => {
-      addToast(`âœ… Your gatepass ${data.passNumber || ''} has been approved!`, 'success');
+      addToast(`✅ Your gatepass ${data.passNumber || ''} has been approved!`, 'success');
       setGpTick(t => t + 1);
     });
 
-    // gatepass:rejected â€” backend sends ONLY to the requester's personal room
+    // gatepass:rejected — backend sends ONLY to the requester's personal room
     socket.on('gatepass:rejected', (data: any) => {
-      addToast(`âŒ Your gatepass ${data.passNumber || ''} was rejected`, 'error');
+      addToast(`❌ Your gatepass ${data.passNumber || ''} was rejected`, 'error');
       setGpTick(t => t + 1);
     });
 
-    // gatepass:exited â€” backend sends ONLY to 'mgmt' room (managers/admins), not the employee
+    // gatepass:exited — backend sends ONLY to 'mgmt' room (managers/admins), not the employee
     socket.on('gatepass:exited', (data: any) => {
-      addToast(`ðŸš¶ ${data.name || 'An employee'} exited â€” ${data.passNumber || ''}`, 'info');
+      addToast(`🚶 ${data.name || 'An employee'} exited — ${data.passNumber || ''}`, 'info');
       setGpTick(t => t + 1);
     });
 
-    // gatepass:returned â€” backend sends ONLY to 'mgmt' room
+    // gatepass:returned — backend sends ONLY to 'mgmt' room
     socket.on('gatepass:returned', (data: any) => {
-      addToast(`ðŸ  ${data.name || 'An employee'} returned â€” ${data.passNumber || ''}`, 'success');
+      addToast(`🏠 ${data.name || 'An employee'} returned — ${data.passNumber || ''}`, 'success');
       setGpTick(t => t + 1);
     });
 
-    // gatepass:refresh â€” silent event (no toast), just refresh data panels for everyone
+    // gatepass:refresh — silent event (no toast), just refresh data panels for everyone
     socket.on('gatepass:refresh', () => {
       setGpTick(t => t + 1);
     });
@@ -3372,7 +3365,7 @@ function GatepassPage() {
       {/* Header */}
       <div style={{ marginBottom:20, display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
         <div>
-          <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>ðŸšª Gatepass</h1>
+          <h1 style={{ fontSize:22, fontWeight:700, margin:0 }}>🚪 Gatepass</h1>
           <div style={{ fontSize:13, color:'var(--muted)', marginTop:4 }}>Employee Outpass Management</div>
         </div>
         {/* Real-time indicator */}
@@ -3397,7 +3390,7 @@ function GatepassPage() {
         ))}
       </div>
 
-      {/* Tab content â€” gpTick triggers live refresh across all tabs */}
+      {/* Tab content — gpTick triggers live refresh across all tabs */}
       {validTab === 'my'      && <GpMyTab       refreshTick={gpTick} />}
       {validTab === 'approve' && <GpApprovalsTab refreshTick={gpTick} />}
       {validTab === 'gate'    && <GpGateTab      refreshTick={gpTick} />}
@@ -3406,7 +3399,7 @@ function GatepassPage() {
   );
 }
 
-// â”€â”€â”€ Root App â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Root App ─────────────────────────────────────────────────
 export default function AdminApp() {
   const [user,         setUser]         = useState<any>(() => {
     try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; }
@@ -3414,7 +3407,7 @@ export default function AdminApp() {
   const [theme,        setTheme]        = useState<'light'|'dark'>(() => localStorage.getItem('theme') as any || 'light');
   const [showLogoutDlg, setShowLogoutDlg] = useState(false);
 
-  // â”€â”€ Toast state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Toast state ────────────────────────────────────────────────
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastIdRef = useRef(0);
   const addToast = useCallback((msg: string, type: ToastItem['type'] = 'info') => {
@@ -3424,7 +3417,7 @@ export default function AdminApp() {
   }, []);
   const removeToast = (id: number) => setToasts(prev => prev.filter(t => t.id !== id));
 
-  // â”€â”€ Biometric state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Biometric state ────────────────────────────────────────────
   const bio = useBiometric();
 
   const login = (d: any) => {
@@ -3464,7 +3457,7 @@ export default function AdminApp() {
               {/* Mobile: fixed top bar (hidden on desktop via CSS) */}
               <MobileTopBar user={user} logout={requestLogout} isDark={isDark} toggleTheme={toggleTheme} />
 
-              {/* Page content â€” wrapped in ErrorBoundary so crashes show a message, not blank white */}
+              {/* Page content — wrapped in ErrorBoundary so crashes show a message, not blank white */}
               <main className="app-main" style={{ flex:1, overflowY:'auto', minHeight:'100vh', background:'var(--bg)' }}>
                 <ErrorBoundary>
                   <Routes>
@@ -3504,7 +3497,7 @@ export default function AdminApp() {
         {/* Global toast notifications */}
         <ToastContainer toasts={toasts} remove={removeToast} />
 
-        {/* Biometric lock screen â€” shown on launch & foreground if bio is enabled */}
+        {/* Biometric lock screen — shown on launch & foreground if bio is enabled */}
         {bio.locked && user && (
           <LockScreen
             onUnlock={bio.authenticate}
@@ -3518,4 +3511,3 @@ export default function AdminApp() {
     </BiometricCtx.Provider>
   );
 }
-
