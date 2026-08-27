@@ -182,7 +182,12 @@ export function EmployeesPage() {
       // refresh allUsers so RM names stay up-to-date in dropdowns
       API.get('/users', { params: { limit: 300 } }).then(r => setAllUsers(r.data.data || [])).catch(() => {});
     } catch (e: any) {
-      setErrMsg(e.response?.data?.message || 'Failed to save. Check all required fields.');
+      const msg = e.response?.data?.message || e.response?.data?.errors?.[0]?.message || '';
+      if (!msg || msg.toLowerCase().includes('validation')) {
+        setErrMsg('Validation failed. Check: password must be 8+ chars with uppercase, lowercase, number & special char (@ $ ! % * ? &). All * fields are required.');
+      } else {
+        setErrMsg(msg);
+      }
     }
     setSaving(false);
   }
@@ -248,13 +253,15 @@ export function EmployeesPage() {
           <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Employee Management</h1>
           <p style={{ color: 'var(--muted)', fontSize: 13 }}>{total} total employees</p>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={() => { setBulkFile(null); setBulkResult(null); setBulkErr(''); setShowBulkModal(true); }}
-            style={{ ...btnSecondary, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            📊 Bulk Upload
-          </button>
-          <button onClick={openAdd} style={btnPrimary}>+ Add Employee</button>
-        </div>
+        {currentRole === 'SUPER_ADMIN' && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => { setBulkFile(null); setBulkResult(null); setBulkErr(''); setShowBulkModal(true); }}
+              style={{ ...btnSecondary, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              📊 Bulk Upload
+            </button>
+            <button onClick={openAdd} style={btnPrimary}>+ Add Employee</button>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -411,8 +418,11 @@ export function EmployeesPage() {
           </div>
           {modal === 'add' && (
             <div style={{ marginTop: 14 }}>
-              <label style={labelSt}>Password * (min 8 chars, must include A-Z, 0-9, special)</label>
+              <label style={labelSt}>Password *</label>
               <input type="password" style={inputSt} value={form.password} onChange={e => f('password', e.target.value)} placeholder="e.g. Pass@1234" />
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5, lineHeight: 1.5 }}>
+                Min 8 characters · must include uppercase (A-Z) · lowercase (a-z) · number (0-9) · special character: <strong>@ $ ! % * ? &</strong>
+              </div>
             </div>
           )}
           <div style={{ marginTop: 14 }}>
