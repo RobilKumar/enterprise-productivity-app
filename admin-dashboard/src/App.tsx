@@ -2858,7 +2858,7 @@ function GpMyTab({ refreshTick }: { refreshTick?: number }) {
       {showAdd && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:300, padding:16 }}
           onClick={e => e.target===e.currentTarget && setShowAdd(false)}>
-          <div style={{ width:'100%', maxmaxWidth:'calc(100vw - 32px)', Width:480, background:'var(--surface)', borderRadius:16, padding:'24px 20px', maxHeight:'90vh', overflowY:'auto', boxShadow:'0 20px 60px rgba(0,0,0,.3)' }}>
+          <div style={{ width:'100%', maxWidth:480, background:'var(--surface)', borderRadius:16, padding:'24px 20px', maxHeight:'90vh', overflowY:'auto', boxShadow:'0 20px 60px rgba(0,0,0,.3)' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
               <h2 style={{ fontSize:18, fontWeight:700, margin:0 }}>ðŸšª Raise Outpass Request</h2>
               <button onClick={() => setShowAdd(false)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color:'var(--muted)' }}>Ã—</button>
